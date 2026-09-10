@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # StudioSat Web — TVKIDS Recovery Rebaseline
-# Version: 1.0
+# Version: 1.1
 # Owner: Engenharia TV
 # Safety class: read-only
 # Purpose: reconstruir o estado factual da TVKIDS após execução intercalada no host
-#          e, se os invariantes P1 permanecerem válidos, executar o diagnóstico P2.
+#          e, se os invariantes P1 permanecerem válidos e nenhuma mutação concorrente
+#          estiver ativa, executar o diagnóstico P2.
 set -Eeuo pipefail
 IFS=$'\n\t'
 export LC_ALL=C
@@ -34,7 +35,7 @@ fail(){ echo "FATAL=$*" >&2; exit 1; }
 sha(){ sha256sum "$1" | awk '{print $1}'; }
 count_pat(){ grep -c "$1" "$2" 2>/dev/null || true; }
 
-printf 'TVKIDS RECOVERY REBASELINE v1.0\nUTC=%s\nREPO=%s\n\n' "$TS" "$REPO"
+printf 'TVKIDS RECOVERY REBASELINE v1.1\nUTC=%s\nREPO=%s\n\n' "$TS" "$REPO"
 
 printf '=== A. GIT / FONTE DA VERDADE ===\n'
 cd "$REPO"
@@ -55,6 +56,15 @@ if [[ -s "$OUT/change-processes.txt" ]]; then
   echo "change_processes=DETECTED"
 else
   echo "change_processes=NONE_DETECTED"
+fi
+ps -eo pid=,ppid=,etimes=,args= | grep -E 'apply-radioprincipal|apply-.*(radio|tv)|tvkids-p1-install-restart-guard|systemctl (restart|reload|start|stop)' | grep -v -E 'grep -E|tvkids-recovery-rebaseline-v1' > "$OUT/mutating-processes.txt" || true
+if [[ -s "$OUT/mutating-processes.txt" ]]; then
+  echo "mutating_change_processes=DETECTED"
+  cat "$OUT/mutating-processes.txt"
+  MUTATION_ACTIVE=1
+else
+  echo "mutating_change_processes=NONE_DETECTED"
+  MUTATION_ACTIVE=0
 fi
 
 echo
@@ -173,6 +183,7 @@ P2_GATE=PASS
 if [[ -f "$P2" ]]; then
   if ! bash -n "$P2"; then P2_GATE=BLOCKED_P2_SYNTAX; fi
 fi
+if [[ "$MUTATION_ACTIVE" -eq 1 ]]; then P2_GATE=BLOCKED_CONCURRENT_MUTATION; fi
 echo "p2_gate=$P2_GATE"
 
 P2_RC=99
