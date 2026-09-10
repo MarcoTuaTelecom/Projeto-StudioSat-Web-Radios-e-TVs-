@@ -1,0 +1,70 @@
+schema_version: STUDIOSAT-CRITICAL-ARTIFACTS-1
+status: provisional-until-CHG-004B-live-hash-capture
+observed_at_utc: 2026-09-10T15:35:03Z
+evidence: FULL-RAYX-v3.1
+archive_sha256: 338c3f808aff8d70c5843daf88bfd7169fbb289704cabe937b60425511f26a6f
+policy:
+  static_artifact_hash_change_requires_change_id: true
+  dynamic_playlist_hashes_are_tracked_but_may_change_only_in_authorized_change: true
+  unit_and_dropin_raw_hashes: pending_CHG_004B
+
+static_artifacts:
+  - path: /usr/local/sbin/tps-generate-playlist
+    owner: shared-core-transition
+    sha256: 4b2277f91d8c5b469e41d70fab4a93f11c5d32ce4e4d99a634378fb80d5a6d5f
+  - path: /usr/local/sbin/tps-generate-playlist-radioprincipal-fixed
+    owner: radio
+    sha256: d7140c872191f6b9efabeb8ef6bd813eba898f9978822e7f5ab15c7e819a5f18
+  - path: /usr/local/sbin/tps-playout-radio
+    owner: radio
+    sha256: 5920f385cc47aed6466b58ad48b26c7f9d4b2da2ba9aa17690ab1289691607e3
+  - path: /usr/local/sbin/tps-playout-tv
+    owner: tv
+    sha256: 8a3739d78fefa8c98fec051f3ec8214c4853277b8b15a2c4f497a13ddeed86d9
+  - path: /etc/tpsmedia/mediamtx/mediamtx.yml
+    owner: core
+    sha256: 31540e918832c7b9d2ffd8e36c34f44cfe04dfe297f57dd188b8647b5079c264
+  - path: /etc/nginx/nginx.conf
+    owner: core
+    sha256: 25d849a8188327bfde73b2aecc4143a8acaf81361b8baf73d0ec3a983ffe0975
+  - path: /etc/nginx/conf.d/tps-9-emissoras.conf
+    owner: core
+    sha256: d5918e3e912eb5f43f6d00be239f7907b145173fd56492dc8a15149cd55d2f24
+  - path: /etc/nginx/conf.d/tps-studiosatweb.conf
+    owner: core
+    sha256: 3e875a7e8dd3176a13bccc6a239f16c15951e6060ec10cd12697fda9f63c1d69
+  - path: /etc/nginx/conf.d/tps-tpsolutions-https.conf
+    owner: core
+    sha256: 4e22fdc0659234c93db9f0354a6c5d11ba76373cf918e2304ab25b6e9f7a0317
+
+dynamic_playlists:
+  radioprincipal:
+    path: /srv/tpsmedia/repository/channels/radioprincipal/playlists/playlist.txt
+    sha256: 9bded92a31b437063adacb968c1b0985a4c8a82dd4e2783a1ef3335896e49cfe
+  radiopop:
+    path: /srv/tpsmedia/repository/channels/radiopop/playlists/playlist.txt
+    sha256: 6e8e3991833c6ff5e15c0695bdde33a0dfd4e4854faf342e0344b2c794d1a23d
+  radiorock:
+    path: /srv/tpsmedia/repository/channels/radiorock/playlists/playlist.txt
+    sha256: fa2deaa33806adf912eb3fc33346253c766d021f37c4322cf6ddfe7e4bf45f85
+  radioclassicas:
+    path: /srv/tpsmedia/repository/channels/radioclassicas/playlists/playlist.txt
+    sha256: cf679f2518649137fe33a152ff1b615b36d389ebf1f8bdf3433bd18346c22f7f
+  radiocountry:
+    path: /srv/tpsmedia/repository/channels/radiocountry/playlists/playlist.txt
+    sha256: 5a061c3f67080437c51b61c5ebf89916cd6b8eb780e59a59b7ef40dcda53faf4
+  tvkids:
+    path: /srv/tpsmedia/repository/channels/tvkids/playlists/playlist.txt
+    sha256: 338b3cbccd7c4b040b86f88b25b94e4028dbae563eed62966fe9a0666c8f9658
+  tvteens:
+    path: /srv/tpsmedia/repository/channels/tvteens/playlists/playlist.txt
+    sha256: f12c57941606002504c233dd1fc2358f8251235bec81da2b6d8c93db5de6dccc
+  tvviva:
+    path: /srv/tpsmedia/repository/channels/tvviva/playlists/playlist.txt
+    sha256: 525b9a3da1c35dba727613ad4880e2e70f2daa2fcfda379d485e9de64b360f90
+  tvmaisjovem:
+    path: /srv/tpsmedia/repository/channels/tvmaisjovem/playlists/playlist.txt
+    sha256: 7bfc6117cc3b74652aea17c5c2dbadf716542de489326deb4dbd43658da7f266
+
+unit_hashes:
+  note: "Não inferir hashes dos unit files a partir de systemctl cat. A CHG-004B captura SHA-256 dos FragmentPath e DropInPaths crus diretamente do host e este registry será atualizado antes da primeira mutação."
