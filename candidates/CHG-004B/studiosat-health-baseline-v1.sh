@@ -7,7 +7,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-VERSION="1.0-candidate"
+VERSION="1.0-candidate.1"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 HOST="$(hostname -s 2>/dev/null || hostname)"
 OUT="/tmp/studiosat-health-baseline-${HOST}-${STAMP}"
@@ -114,10 +114,12 @@ for ch in "${CHANNELS[@]}"; do
     printf 'MISSING\t%s\t%s\tunit\n' "${frag:-UNKNOWN}" "$ch" >> "$OUT/hashes/systemd-stations.tsv"
   fi
   drops="$(systemctl show "$unit" -p DropInPaths --value 2>/dev/null || true)"
-  for d in $drops; do
-    [[ -f "$d" ]] || continue
-    printf '%s\t%s\t%s\tdropin\n' "$(sha256sum "$d" | awk '{print $1}')" "$d" "$ch" >> "$OUT/hashes/systemd-stations.tsv"
-  done
+  if [[ -n "$drops" ]]; then
+    while IFS= read -r d; do
+      [[ -n "$d" && -f "$d" ]] || continue
+      printf '%s\t%s\t%s\tdropin\n' "$(sha256sum "$d" | awk '{print $1}')" "$d" "$ch" >> "$OUT/hashes/systemd-stations.tsv"
+    done < <(printf '%s\n' "$drops" | tr ' ' '\n')
+  fi
 done
 
 printf 'sha256\tpath\tstation\tkind\n' > "$OUT/hashes/playlists.tsv"
@@ -167,13 +169,25 @@ for ch in "${CHANNELS[@]}"; do
   hfresh=SKIP
   if [[ "$hcode" == 200 ]] && is_manifest "$cdir/hls-1.body"; then
     hmanifest=PASS
+    probe_url="$hls_url"
+    probe1="$cdir/hls-1.body"
+    first_uri="$(grep -Ev '^#|^[[:space:]]*$' "$cdir/hls-1.body" | head -n1 || true)"
+    if [[ "$first_uri" == *.m3u8* ]]; then
+      if [[ "$first_uri" =~ ^https?:// ]]; then
+        probe_url="$first_uri"
+      else
+        probe_url="${hls_url%/*}/$first_uri"
+      fi
+      curl -fsS -L --max-time 8 "$probe_url" > "$cdir/hls-media-1.body" 2>"$cdir/hls-media-1.err" || true
+      if is_manifest "$cdir/hls-media-1.body"; then probe1="$cdir/hls-media-1.body"; fi
+    fi
     sleep 3
-    curl -fsS -L --max-time 8 "$hls_url" > "$cdir/hls-2.body" 2>/dev/null || true
-    if is_manifest "$cdir/hls-2.body"; then
-      seq1="$(grep -m1 '^#EXT-X-MEDIA-SEQUENCE:' "$cdir/hls-1.body" | cut -d: -f2 || true)"
-      seq2="$(grep -m1 '^#EXT-X-MEDIA-SEQUENCE:' "$cdir/hls-2.body" | cut -d: -f2 || true)"
-      last1="$(grep -Ev '^#|^[[:space:]]*$' "$cdir/hls-1.body" | tail -n1 || true)"
-      last2="$(grep -Ev '^#|^[[:space:]]*$' "$cdir/hls-2.body" | tail -n1 || true)"
+    curl -fsS -L --max-time 8 "$probe_url" > "$cdir/hls-fresh-2.body" 2>/dev/null || true
+    if is_manifest "$probe1" && is_manifest "$cdir/hls-fresh-2.body"; then
+      seq1="$(grep -m1 '^#EXT-X-MEDIA-SEQUENCE:' "$probe1" | cut -d: -f2 || true)"
+      seq2="$(grep -m1 '^#EXT-X-MEDIA-SEQUENCE:' "$cdir/hls-fresh-2.body" | cut -d: -f2 || true)"
+      last1="$(grep -Ev '^#|^[[:space:]]*$' "$probe1" | tail -n1 || true)"
+      last2="$(grep -Ev '^#|^[[:space:]]*$' "$cdir/hls-fresh-2.body" | tail -n1 || true)"
       if [[ "$seq1" != "$seq2" || "$last1" != "$last2" ]]; then hfresh=CHANGING; else hfresh=UNCHANGED_3S; fi
     fi
   fi
@@ -187,7 +201,11 @@ for ch in "${CHANNELS[@]}"; do
   noready="$(grep -Eic 'NO_READY_MEDIA' "$cdir/journal-30m.txt" || true)"
   dts="$(grep -Eic 'non-monotonic dts' "$cdir/journal-30m.txt" || true)"
 
-  ready_count="$(find "$ROOT/$ch/ready" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ -d "$ROOT/$ch/ready" ]]; then
+    ready_count="$(find "$ROOT/$ch/ready" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')"
+  else
+    ready_count=0
+  fi
   playlist="$ROOT/$ch/playlists/playlist.txt"
   phash=MISSING; [[ -f "$playlist" ]] && phash="$(sha256sum "$playlist" | awk '{print $1}')"
 
