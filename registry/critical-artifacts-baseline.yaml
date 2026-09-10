@@ -3,7 +3,7 @@ status: locked
 observed_at_utc: 2026-09-10T16:57:41Z
 evidence:
   full_rayx: FULL-RAYX-v3.1
-  full_rayx_archive_sha256: 338c3f808affd70c5843daf88bfd7169fbb289704cabe937b60425511f26a6f
+  full_rayx_archive_sha256: 338c3f808aff8d70c5843daf88bfd7169fbb289704cabe937b60425511f26a6f
   health_baseline: CHG-004B-20260910T165741Z
   health_archive_sha256_received_copy: 5d6e0cb9630329cc06444c4592e989cb7adfdf818a71182123724f74f316433a
   health_archive_server_sidecar_verified: true
