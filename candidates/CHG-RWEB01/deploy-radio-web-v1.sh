@@ -18,6 +18,17 @@ BACKUP="/var/backups/studiosat/CHG-RWEB01/$TS"
 [[ -d "$PORTAL_ROOT" ]] || { echo "FATAL=PORTAL_ROOT_NOT_FOUND:$PORTAL_ROOT"; exit 1; }
 [[ -d "$PLAYER_ROOT" ]] || { echo "FATAL=PLAYER_ROOT_NOT_FOUND:$PLAYER_ROOT"; exit 1; }
 
+# These roots are currently shared by Radio and TV hostnames. Replacing their
+# index.html would change multiple products at once, so this legacy deploy must
+# refuse them. CHG-RWEB01 must first split Radio into explicit NGINX server
+# blocks and dedicated web roots.
+if [[ "$PORTAL_ROOT" == "/var/www/portais" || "$PLAYER_ROOT" == "/var/www/emissoras" ]]; then
+  echo 'FATAL=SHARED_RADIO_TV_WEBROOT_REFUSED'
+  echo 'DETAIL=/var/www/portais and /var/www/emissoras are shared by Radio and TV hostnames.'
+  echo 'ACTION=Use the isolated Radio webroot/server-block deployment for CHG-RWEB01.'
+  exit 1
+fi
+
 mkdir -p "$BACKUP"
 for pair in "$PORTAL_ROOT/index.html:portal.previous.html" "$PLAYER_ROOT/index.html:player.previous.html"; do
   src=${pair%%:*}; dst=${pair##*:}
