@@ -1,0 +1,258 @@
+schema_version: STUDIOSAT-REGISTRY-0.1
+observed_at_utc: 2026-09-10T13:01:38Z
+evidence_id: CHG-001-20260910T130138Z
+notes:
+  - "Estado de health abaixo é preliminar; STUDIOSAT-HEALTH-1 será implementado na CHG-004."
+  - "publish_path foi confirmado pela API/configuração MediaMTX."
+  - "public_urls foram extraídas da configuração NGINX; somente os quatro endpoints-raiz do preflight tiveram HTTP 200 confirmado nesta coleta."
+  - "O conteúdo das playlists ativas não foi capturado pelo preflight v1.0; não inferir origem ready/canonical apenas pelo path playlist.txt."
+
+stations:
+  radioprincipal:
+    station_id: radioprincipal
+    station_class: radio
+    public_name: "Studio Sat Principal"
+    owner_domain: radio
+    legacy:
+      unit: tps-radioprincipal-playout.service
+      media_root: /srv/tpsmedia/repository/channels/radioprincipal
+      playlist: /srv/tpsmedia/repository/channels/radioprincipal/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-radio
+      playlist_generator: /usr/local/sbin/tps-generate-playlist-radioprincipal-fixed
+    engine:
+      adapter: RadioEngineAdapter
+      implementation: ffmpeg-legacy
+      candidate: liquidsoap-2.4.x
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+      observed_current_output: "MPEG-1/2 Audio"
+      ready_files_observed: 19
+      canonical_files_observed: 1
+    output:
+      publish_path: radioprincipal
+      public_urls:
+        - https://radio.studiosatweb.com.br
+        - https://radioprincipal.studiosatweb.com.br
+        - https://www.radioprincipal.studiosatweb.com.br
+      lab_paths: [lab-radio-principal-av, lab-radio-principal-audio]
+    health:
+      schema_version: STUDIOSAT-HEALTH-1
+      preliminary_state: healthy
+      systemd: active
+      mediamtx_ready: true
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  radiopop:
+    station_id: radiopop
+    station_class: radio
+    public_name: "Studio Sat Pop"
+    owner_domain: radio
+    legacy:
+      unit: tps-radiopop-playout.service
+      media_root: /srv/tpsmedia/repository/channels/radiopop
+      playlist: /srv/tpsmedia/repository/channels/radiopop/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-radio
+      playlist_generator: /usr/local/sbin/tps-generate-playlist
+    engine: {adapter: RadioEngineAdapter, implementation: ffmpeg-legacy, candidate: liquidsoap-2.4.x}
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+      observed_current_output: "MPEG-1/2 Audio"
+      ready_files_observed: 11
+      canonical_files_observed: 1
+    output:
+      publish_path: radiopop
+      public_urls: [https://radiopop.studiosatweb.com.br, https://www.radiopop.studiosatweb.com.br]
+      lab_paths: [lab-radio-pop-av, lab-radio-pop-audio]
+    health: {schema_version: STUDIOSAT-HEALTH-1, preliminary_state: healthy, systemd: active, mediamtx_ready: true}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  radiorock:
+    station_id: radiorock
+    station_class: radio
+    public_name: "Studio Sat Rock"
+    owner_domain: radio
+    legacy:
+      unit: tps-radiorock-playout.service
+      media_root: /srv/tpsmedia/repository/channels/radiorock
+      playlist: /srv/tpsmedia/repository/channels/radiorock/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-radio
+      playlist_generator: /usr/local/sbin/tps-generate-playlist
+    engine: {adapter: RadioEngineAdapter, implementation: ffmpeg-legacy, candidate: liquidsoap-2.4.x}
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+      observed_current_output: null
+      ready_files_observed: 1
+      canonical_files_observed: 1
+    output:
+      publish_path: radiorock
+      public_urls: [https://radiorock.studiosatweb.com.br, https://www.radiorock.studiosatweb.com.br]
+      lab_paths: [lab-radio-rock-av, lab-radio-rock-audio]
+    health:
+      schema_version: STUDIOSAT-HEALTH-1
+      preliminary_state: failed
+      systemd: failed
+      mediamtx_ready: false
+      observed_reason: "gerador retorna NO_READY_MEDIA porque o único ready observado é arquivo de teste excluído pela regra atual"
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  radioclassicas:
+    station_id: radioclassicas
+    station_class: radio
+    public_name: "Studio Sat Clássicas"
+    owner_domain: radio
+    legacy:
+      unit: tps-radioclassicas-playout.service
+      media_root: /srv/tpsmedia/repository/channels/radioclassicas
+      playlist: /srv/tpsmedia/repository/channels/radioclassicas/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-radio
+      playlist_generator: /usr/local/sbin/tps-generate-playlist
+    engine: {adapter: RadioEngineAdapter, implementation: ffmpeg-legacy, candidate: liquidsoap-2.4.x}
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+      observed_current_output: "MPEG-1/2 Audio"
+      ready_files_observed: 12
+      canonical_files_observed: 1
+    output:
+      publish_path: radioclassicas
+      public_urls: [https://radioclassicas.studiosatweb.com.br, https://www.radioclassicas.studiosatweb.com.br]
+      lab_paths: [lab-radio-classicas-av, lab-radio-classicas-audio]
+    health: {schema_version: STUDIOSAT-HEALTH-1, preliminary_state: healthy, systemd: active, mediamtx_ready: true}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  radiocountry:
+    station_id: radiocountry
+    station_class: radio
+    public_name: "Studio Sat Country"
+    owner_domain: radio
+    legacy:
+      unit: tps-radiocountry-playout.service
+      media_root: /srv/tpsmedia/repository/channels/radiocountry
+      playlist: /srv/tpsmedia/repository/channels/radiocountry/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-radio
+      playlist_generator: /usr/local/sbin/tps-generate-playlist
+    engine: {adapter: RadioEngineAdapter, implementation: ffmpeg-legacy, candidate: liquidsoap-2.4.x}
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+      observed_current_output: "MPEG-1/2 Audio"
+      ready_files_observed: 19
+      canonical_files_observed: 1
+    output:
+      publish_path: radiocountry
+      public_urls: [https://radiocountry.studiosatweb.com.br, https://www.radiocountry.studiosatweb.com.br]
+      lab_paths: [lab-radio-country-av, lab-radio-country-audio]
+    health: {schema_version: STUDIOSAT-HEALTH-1, preliminary_state: healthy, systemd: active, mediamtx_ready: true}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  tvkids:
+    station_id: tvkids
+    station_class: tv
+    public_name: TVKIDS
+    owner_domain: tv
+    legacy:
+      unit: tps-tvkids-playout.service
+      media_root: /srv/tpsmedia/repository/channels/tvkids
+      playlist: /srv/tpsmedia/repository/channels/tvkids/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-tv
+      playlist_generator: /usr/local/sbin/tps-generate-playlist
+    engine: {adapter: TvEngineAdapter, implementation: ffmpeg-ffconcat-copy, candidate: null}
+    media:
+      canonical_profile: TVKIDS-V1
+      profile_version: 1
+      observed_current_output: "H264 High 1280x720 + AAC 48kHz stereo"
+      ready_files_observed: 13
+      canonical_files_observed: 15
+    output:
+      publish_path: tvkids
+      public_urls:
+        - https://tvkids.studiosatweb.com.br
+        - https://tvkidsweb.studiosatweb.com.br
+        - https://www.tvkids.studiosatweb.com.br
+        - https://www.tvkidsweb.studiosatweb.com.br
+      lab_paths: [lab-tv-tvkids-av]
+    health:
+      schema_version: STUDIOSAT-HEALTH-1
+      preliminary_state: degraded
+      systemd: active
+      mediamtx_ready: true
+      observed_issue: "Non-monotonic DTS persistente no journal durante a coleta"
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  tvteens:
+    station_id: tvteens
+    station_class: tv
+    public_name: TVTEENS
+    owner_domain: tv
+    legacy:
+      unit: tps-tvteens-playout.service
+      media_root: /srv/tpsmedia/repository/channels/tvteens
+      playlist: /srv/tpsmedia/repository/channels/tvteens/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-tv
+      playlist_generator: /usr/local/sbin/tps-generate-playlist
+    engine: {adapter: TvEngineAdapter, implementation: ffmpeg-ffconcat-copy, candidate: null}
+    media:
+      canonical_profile: STUDIOSAT-TV-V1-DRAFT
+      profile_version: draft
+      observed_current_output: "H264 High 1280x720 + AAC 48kHz stereo"
+      ready_files_observed: 1
+      canonical_files_observed: 1
+    output:
+      publish_path: tvteens
+      public_urls: [https://tvteens.studiosatweb.com.br, https://www.tvteens.studiosatweb.com.br]
+      lab_paths: [lab-tv-tvteens-av]
+    health: {schema_version: STUDIOSAT-HEALTH-1, preliminary_state: healthy, systemd: active, mediamtx_ready: true}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  tvviva:
+    station_id: tvviva
+    station_class: tv
+    public_name: TVVIVA
+    owner_domain: tv
+    legacy:
+      unit: tps-tvviva-playout.service
+      media_root: /srv/tpsmedia/repository/channels/tvviva
+      playlist: /srv/tpsmedia/repository/channels/tvviva/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-tv
+      playlist_generator: /usr/local/sbin/tps-generate-playlist
+    engine: {adapter: TvEngineAdapter, implementation: ffmpeg-ffconcat-copy, candidate: null}
+    media:
+      canonical_profile: STUDIOSAT-TV-V1-DRAFT
+      profile_version: draft
+      observed_current_output: "H264 High 1280x720 + AAC 48kHz stereo"
+      ready_files_observed: 1
+      canonical_files_observed: 1
+    output:
+      publish_path: tvviva
+      public_urls: [https://tvviva.studiosatweb.com.br, https://www.tvviva.studiosatweb.com.br]
+      lab_paths: [lab-tv-tvviva-av]
+    health: {schema_version: STUDIOSAT-HEALTH-1, preliminary_state: healthy, systemd: active, mediamtx_ready: true}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  tvmaisjovem:
+    station_id: tvmaisjovem
+    station_class: tv
+    public_name: TVMAISJOVEM
+    owner_domain: tv
+    legacy:
+      unit: tps-tvmaisjovem-playout.service
+      media_root: /srv/tpsmedia/repository/channels/tvmaisjovem
+      playlist: /srv/tpsmedia/repository/channels/tvmaisjovem/playlists/playlist.txt
+      playout_script: /usr/local/sbin/tps-playout-tv
+      playlist_generator: /usr/local/sbin/tps-generate-playlist
+    engine: {adapter: TvEngineAdapter, implementation: ffmpeg-ffconcat-copy, candidate: null}
+    media:
+      canonical_profile: STUDIOSAT-TV-V1-DRAFT
+      profile_version: draft
+      observed_current_output: "H264 High 1280x720 + AAC 48kHz stereo"
+      ready_files_observed: 1
+      canonical_files_observed: 1
+    output:
+      publish_path: tvmaisjovem
+      public_urls: [https://tvmaisjovem.studiosatweb.com.br, https://www.tvmaisjovem.studiosatweb.com.br]
+      lab_paths: [lab-tv-tvmaisjovem-av]
+    health: {schema_version: STUDIOSAT-HEALTH-1, preliminary_state: healthy, systemd: active, mediamtx_ready: true}
+    control: {plan_version: STUDIOSAT-PLAN-1}
