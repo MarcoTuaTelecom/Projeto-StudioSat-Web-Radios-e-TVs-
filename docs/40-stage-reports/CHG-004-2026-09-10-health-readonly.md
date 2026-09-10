@@ -1,54 +1,48 @@
 # CHG-004 — Health read-only dos 9 canais
 
-Status: **DRAFT / BLOCKED POR CHG-003**  
+Status: **READY FOR EXECUTION**  
 Owner: Core  
 Candidate: `candidates/CHG-004/studiosat-health-readonly.sh`  
-Último SYNC antes deste plano: `b07e66e01b0c9d93dfac98a65812311f00312f3e`
+Safety class: `read-only`
+
+## SYNC que liberou a execução
+
+- CHG-001: DONE/PASS.
+- CHG-002: DONE/PASS.
+- Core Contract v0.1 aceito pelo Core.
+- Engenharia TV: aceite registrado.
+- Engenharia Rádio: `docs/10-radio/RADIO_ACCEPTANCE_CORE_CONTRACT_v0.1.md` = ACCEPTED.
+- Diretriz vigente: Rádio-first com Core compatível com TV.
+- Nenhum commit concorrente da Engenharia TV foi observado entre o checkpoint `c72132d...` e a publicação da diretriz Rádio-first.
+
+Antes da execução no host, o operador deve obrigatoriamente fazer `git fetch/pull` e conferir o novo HEAD. Se houver commits posteriores, a execução para e volta a SYNC.
 
 ## Objetivo
 
 Criar a primeira implementação executável do envelope `STUDIOSAT-HEALTH-1` sem alterar playout, MediaMTX, NGINX, playlists, mídia ou systemd.
 
-O health deve corrigir duas limitações observadas no Core Preflight v1.0:
+O health serve a duas funções:
 
-1. HLS local deve seguir redirects HTTP antes de concluir falha;
-2. Rádio não pode ser declarada offline apenas porque `ffprobe` de leitura RTMP falhou — MediaMTX API/path/source também deve participar da decisão.
+1. baseline para a trilha Rádio, especialmente antes de recuperar Radio Rock;
+2. controle de não-regressão das quatro TVs enquanto o Core/Rádio evolui, **sem executar correção TV**.
 
-## Gate atual
-
-**NÃO EXECUTAR AINDA.**
-
-CHG-003 permanece pendente do aceite formal da Engenharia de Rádio ao `CORE CONTRACT v0.1`. A Engenharia de TV já aceitou o contrato e a estratégia conjunta.
-
-Enquanto o aceite Rádio não estiver publicado no GitHub, este arquivo e o script são somente candidates para revisão.
-
-## Candidate publicado
+## Candidate revisado
 
 `candidates/CHG-004/studiosat-health-readonly.sh`
 
-### Safety class
+A revisão confirmou que o script:
 
-`read-only`
-
-### Efeitos permitidos
-
-- ler systemd;
-- ler journal;
-- consultar MediaMTX API local;
-- consultar HLS local;
-- consultar endpoints públicos por HTTP;
-- criar somente `/tmp/studiosat-health-<timestamp>/`.
-
-### Proibido
-
-- start/stop/restart/reload;
-- editar configuração;
-- gerar playlist;
-- mover mídia;
-- instalar pacote;
-- alterar firewall/TLS/MediaMTX/NGINX;
-- corrigir Radio Rock;
-- reiniciar TVs.
+- exige apenas `curl`, `jq`, `systemctl`, `journalctl`;
+- consulta MediaMTX API em loopback;
+- segue redirects HLS;
+- lê journal dos últimos 15 minutos;
+- consulta endpoints públicos;
+- cria somente `/tmp/studiosat-health-<timestamp>/`;
+- não possui start/stop/restart/reload;
+- não gera playlist;
+- não escreve em mídia/configuração;
+- não corrige Rock;
+- não reinicia TVs.
 
 ## Checks por station
 
@@ -58,7 +52,7 @@ Base comum:
 station_id
 station_class
 systemd state
-MediaMTX ready/source/tracks
+MediaMTX ready/tracks
 HLS HTTP final
 HLS freshness
 public root HTTP
@@ -66,13 +60,13 @@ recent errors
 schema_version
 ```
 
-Extensão inicial TV:
+Extensão inicial TV, apenas como controle:
 
 ```text
 Non-monotonic DTS nos últimos 15 minutos
 ```
 
-A extensão TV completa (FPS/resolution/timestamp integrity por stream) e a extensão Rádio completa (silence/metadata/live/A-V/audio-only) serão incrementais; não serão simuladas no primeiro health.
+A extensão TV completa continua pertencendo à Engenharia TV. A extensão Rádio completa (silence/metadata/live/A-V/audio-only) será construída pela Engenharia Rádio nas próximas fases.
 
 ## Lógica provisória
 
@@ -91,29 +85,41 @@ A extensão TV completa (FPS/resolution/timestamp integrity por stream) e a exte
 
 - checks acima passam e não há condição de degradação observada.
 
-Essa classificação é operacional inicial e será refinada com as extensões de domínio.
+Essa classificação é baseline operacional, não health final de cada domínio.
 
-## PRECHECK planejado após desbloqueio
+## PRECHECK obrigatório
 
-1. reler `main`;
-2. confirmar `CHG-003 = DONE/ACCEPTED`;
-3. confirmar que nenhuma outra change está EXECUTING;
-4. `git pull --ff-only` no host;
-5. `bash -n candidates/CHG-004/studiosat-health-readonly.sh`;
-6. registrar hash do candidate;
-7. registrar estado visual das 9 units;
-8. executar apenas o candidate.
-
-## Comando planejado — NÃO EXECUTAR ENQUANTO BLOCKED
+No host:
 
 ```bash
 cd /root/Projeto-StudioSat-Web-Radios-e-TVs-
+
 git fetch origin
 git checkout main
 git pull --ff-only
 
+git status --short
+git rev-parse HEAD
+git log -5 --oneline
+```
+
+Se houver working tree alterada ou commit novo não revisado, **STOP** e retornar ao SYNC.
+
+Depois:
+
+```bash
 bash -n candidates/CHG-004/studiosat-health-readonly.sh
+echo $?
 sha256sum candidates/CHG-004/studiosat-health-readonly.sh
+```
+
+`bash -n` deve retornar 0.
+
+## EXECUTE
+
+Somente após PRECHECK PASS:
+
+```bash
 sudo candidates/CHG-004/studiosat-health-readonly.sh
 ```
 
@@ -124,26 +130,36 @@ sudo candidates/CHG-004/studiosat-health-readonly.sh
 /tmp/studiosat-health-<timestamp>/health.tsv
 ```
 
+Copiar os dois arquivos para análise privada. Não commitá-los automaticamente no repositório público.
+
 ## Critérios de PASS
 
 - nenhuma alteração de lifecycle/configuração/mídia;
-- 9 stations aparecem no resultado;
-- `radiorock` deve refletir o estado real, não ser mascarada;
-- TVKIDS deve refletir DTS recente caso ainda exista;
-- HLS deve ser avaliado após redirect;
-- MediaMTX API e systemd devem participar da classificação;
-- resultado deve ser suficiente para decidir CHG-005 sem depender apenas de `systemctl is-active`.
+- 9 stations aparecem;
+- `radiorock` reflete o estado real;
+- HLS é avaliado após redirect;
+- MediaMTX API e systemd participam da classificação;
+- TVs servem como controle de não-regressão;
+- resultado permite preparar CHG-005R sem depender apenas de `systemctl is-active`.
+
+## Critérios de BLOCK/FAIL
+
+- falta de dependência exigida;
+- MediaMTX API não acessível e resultado fica inconclusivo;
+- working tree/HEAD diverge antes da execução;
+- qualquer comportamento mutável inesperado;
+- saída incompleta.
 
 ## Rollback
 
-Não há rollback de produção esperado. O script cria somente arquivos temporários em `/tmp`. Nenhuma limpeza será feita como efeito colateral da execução.
+Não há rollback de produção esperado. O script cria somente arquivos temporários em `/tmp`.
 
 ## Depois da execução
 
-1. anexar o resultado privado ao chat/coordenação, não ao GitHub público;
-2. atualizar este Stage Report com fatos reais;
-3. corrigir o script se necessário;
-4. publicar versão final aceita em `scripts/`;
+1. enviar `health.json` e `health.tsv` para análise Core/Rádio;
+2. reler `main` e commits da Engenharia TV;
+3. atualizar este Stage Report com fatos reais;
+4. corrigir candidate se necessário e publicar versão final aceita em `scripts/`;
 5. atualizar Change Queue;
-6. reler `main` e mudanças de TV/Rádio;
-7. só então decidir CHG-005/CHG-006.
+6. abrir CHG-005R para recuperação da Radio Rock;
+7. manter qualquer achado TV como evidência para a Engenharia TV, sem corrigir a vertical TV nesta frente.
