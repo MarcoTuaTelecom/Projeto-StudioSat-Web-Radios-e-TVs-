@@ -44,6 +44,7 @@ const stations=[
  {slug:'radioclassicas',name:'Clássicas'},
  {slug:'radiocountry',name:'Country'}
 ];
+const hostStation={radioprincipal:'radioprincipal',radiopop:'radiopop',radiorock:'radiorock',radioclassicas:'radioclassicas',radiocountry:'radiocountry'};
 const audio=document.getElementById('audio'), play=document.getElementById('play'), mute=document.getElementById('mute'), volume=document.getElementById('volume'), statusEl=document.getElementById('status');
 let hls=null,current=stations[0];
 function manifest(s){return `/${s.slug}/index.m3u8`;}
@@ -54,13 +55,17 @@ function attach(url){if(hls){hls.destroy();hls=null;} audio.pause();audio.remove
  else if(audio.canPlayType('application/vnd.apple.mpegurl')){audio.src=url;setStatus('Áudio pronto','ok');}
  else setStatus('Este navegador não oferece suporte HLS','err');
 }
-async function selectStation(s,autoplay=false){current=s;document.getElementById('stationName').textContent=s.name.toUpperCase();document.getElementById('now').textContent=`Radio Studio Sat — ${s.name}`;renderButtons();attach(manifest(s));history.replaceState(null,'',`/?station=${encodeURIComponent(s.slug)}`);if(autoplay){try{await audio.play();}catch(e){setStatus('Clique em ▶ para iniciar o áudio');}}}
+async function selectStation(s,autoplay=false){current=s;document.getElementById('stationName').textContent=s.name.toUpperCase();document.getElementById('now').textContent=`Radio Studio Sat — ${s.name}`;document.title=`Radio Studio Sat — ${s.name}`;renderButtons();attach(manifest(s));history.replaceState(null,'',`/?station=${encodeURIComponent(s.slug)}`);if(autoplay){try{await audio.play();}catch(e){setStatus('Clique em ▶ para iniciar o áudio');}}}
 play.onclick=async()=>{try{if(audio.paused){await audio.play();play.textContent='❚❚';setStatus('Reproduzindo ao vivo','ok');}else{audio.pause();play.textContent='▶';}}catch(e){setStatus('Clique novamente para permitir a reprodução','err');}};
 audio.addEventListener('play',()=>play.textContent='❚❚');audio.addEventListener('pause',()=>play.textContent='▶');audio.addEventListener('error',()=>setStatus('Erro de reprodução do áudio','err'));
 volume.oninput=()=>{audio.volume=Number(volume.value);audio.muted=false;mute.textContent=audio.volume===0?'🔇':'🔊';};audio.volume=.8;
 mute.onclick=()=>{audio.muted=!audio.muted;mute.textContent=audio.muted?'🔇':'🔊';};
 document.getElementById('full').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();};
-const wanted=new URLSearchParams(location.search).get('station');current=stations.find(s=>s.slug===wanted)||stations[0];selectStation(current,false);
+const queryStation=new URLSearchParams(location.search).get('station');
+const hostKey=location.hostname.toLowerCase().split('.')[0];
+const wanted=queryStation||hostStation[hostKey]||'radioprincipal';
+current=stations.find(s=>s.slug===wanted)||stations[0];
+selectStation(current,false);
 </script>
 </body>
 </html>
