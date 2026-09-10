@@ -53,16 +53,18 @@ if (( USE_NORMALIZED == 1 )); then
   echo "canonical_action=NORMALIZE_ALL"
   printf 'source\tresult\n' > "$OUT/normalization.tsv"
   idx=0
+  NORMALIZATION_FAILURES=0
   for src in "${SOURCE_FILES[@]}"; do
     idx=$((idx+1)); b="$(basename "$src")"; dst="$CANDCAN/$b"
     if bash "$NORMALIZER" "$src" "$dst" >"$OUT/normalize-${idx}.out" 2>"$OUT/normalize-${idx}.err"; then
       printf '%s\tPASS\n' "$b" | tee -a "$OUT/normalization.tsv"
     else
-      printf '%s\tEXCLUDED\n' "$b" | tee -a "$OUT/normalization.tsv"; rm -f -- "$dst"
+      printf '%s\tFAIL\n' "$b" | tee -a "$OUT/normalization.tsv"; rm -f -- "$dst"; NORMALIZATION_FAILURES=$((NORMALIZATION_FAILURES+1))
     fi
   done
+  (( NORMALIZATION_FAILURES == 0 )) || fail "NORMALIZATION_INCOMPLETE:${NORMALIZATION_FAILURES}_OF_${N}_FAILED"
   mapfile -d '' -t CAND_FILES < <(find "$CANDCAN" -maxdepth 1 -type f -iname '*.mp4' -print0 | sort -z)
-  ((${#CAND_FILES[@]} >= 2)) || fail "LESS_THAN_TWO_NORMALIZED_ASSETS"
+  [[ "${#CAND_FILES[@]}" -eq "$N" ]] || fail "NORMALIZED_ASSET_COUNT_MISMATCH"
 
   idx=0
   for f in "${CAND_FILES[@]}"; do
