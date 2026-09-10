@@ -32,7 +32,7 @@ PREVIOUS_EXISTED=0
 LEGACY_EXISTED=0
 
 need(){ command -v "$1" >/dev/null 2>&1 || { echo "FATAL=MISSING_TOOL:$1" >&2; exit 70; }; }
-for c in systemctl sha256sum ffprobe ffmpeg curl jq nginx grep awk find sort stat readlink tar date ps wc head tail install cp mv rm mkdir flock cmp timeout nice ionice python3 sleep diff chown chmod basename mktemp runuser seq journalctl tr cat; do need "$c"; done
+for c in systemctl sha256sum ffprobe ffmpeg curl jq nginx grep awk find sort stat readlink tar date ps wc head tail install cp mv rm mkdir flock cmp timeout nice ionice python3 sleep diff chown chmod basename mktemp runuser seq journalctl tr cat df; do need "$c"; done
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo "FATAL=RUN_AS_ROOT"; exit 77; }
 
 mkdir -p "$OUT" "$BACKUP" "$WORK" "$CANDCAN"
@@ -56,7 +56,7 @@ rollback(){
   systemctl stop "$UNIT" >/dev/null 2>&1 || true
   if (( CAN_SWAPPED == 1 )); then
     failed_new="${BASE}/lab/failed-${TS}-canonical"
-    rm -rf -- "$failed_new" 2>/dev/null || true
+    [[ -e "$failed_new" ]] && failed_new="${failed_new}.$$"
     [[ -d "$CAN" ]] && mv -- "$CAN" "$failed_new"
     old_path="$(cat "$BACKUP/canonical.pre-rebuild.path" 2>/dev/null || true)"
     [[ -n "$old_path" && -d "$old_path" ]] && mv -- "$old_path" "$CAN"
@@ -93,6 +93,14 @@ done
 
 [[ -d "$CAN" && -f "$GEN" && -f "$NGCONF" ]] || fail "REQUIRED_PRODUCTION_ARTIFACT_MISSING"
 [[ "$(systemctl is-active "$UNIT" || true)" == active ]] || fail "TVKIDS_NOT_ACTIVE_PRE"
+[[ "$(systemctl is-active tps-mediamtx.service || true)" == active ]] || fail "MEDIAMTX_NOT_ACTIVE_PRE"
+[[ "$(systemctl is-active nginx.service || true)" == active ]] || fail "NGINX_NOT_ACTIVE_PRE"
+nginx -t 2>&1 | tee "$OUT/nginx.precheck.txt"
+curl -fsS --connect-timeout 3 --max-time 5 http://127.0.0.1:9997/v3/paths/list > "$OUT/mediamtx.pre.json" || fail "MEDIAMTX_API_UNAVAILABLE_PRE"
+AVAILABLE_KB="$(df -Pk "$BASE" | awk 'NR==2{print $4}')"
+echo "filesystem_available_kb=$AVAILABLE_KB"
+[[ "$AVAILABLE_KB" =~ ^[0-9]+$ && "$AVAILABLE_KB" -ge 4194304 ]] || fail "LESS_THAN_4G_FREE_FOR_REBUILD"
+
 PID_PRE="$(systemctl show "$UNIT" -p MainPID --value)"
 [[ "$PID_PRE" =~ ^[1-9][0-9]*$ && -d "/proc/$PID_PRE" ]] || fail "TVKIDS_PID_INVALID_PRE"
 
