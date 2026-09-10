@@ -1,126 +1,233 @@
-# CHG-004X — Full Ray-X v2 antes da reavaliação integral
+# CHG-004X — FULL RAY-X v3.1 antes da reavaliação integral
 
 Status: **READY FOR EXECUTION**  
 Data: 2026-09-10  
 Owner: Engenharia Rádio + Core  
-Safety class: **READ-ONLY**  
+Safety class: **READ-ONLY COM PROBES LIMITADOS**  
 Princípios: **IN-PLACE FIRST / NO CONTAINERS / NO DUPLICATE PLATFORM**
 
-## Motivo da mudança de ordem
+## Correção de escopo
 
-O restart controlado da Radio Country foi suspenso antes da execução. A decisão vigente é fotografar novamente o estado completo do host e somente depois reavaliar o projeto inteiro.
+O antigo v2 foi considerado insuficiente para a definição de “raio-X completo” exigida pelo projeto. Ele era um preflight ampliado e não inventariava com profundidade suficiente todos os serviços, rotinas, processos, ferramentas, domínios, arquivos, formatos e origens/saídas por emissora.
 
-Nenhum restart da Country deve ocorrer antes do fechamento desta change.
+**v2 está SUPERSEDED. Não executar.**
+
+Candidate vigente:
+
+```text
+candidates/CHG-004X/studiosat-full-rayx-v3.sh
+```
 
 ## Objetivo
 
-Coletar uma fotografia atual e suficientemente completa para decidir, com base no sistema real:
+Permitir reconstruir, com evidência do host, a cadeia completa:
 
-- o que já funciona e deve ser preservado;
-- o que precisa apenas ser corrigido in-place;
-- o que realmente precisa ser substituído;
-- se um novo engine Rádio é necessário e qual problema ele resolve;
-- a causa atual da Radio Rock;
-- o risco real de restart da Country;
-- a semântica atual de `ready/`, `canonical/` e playlists;
-- o comportamento atual de `ExecStartPre` por station;
-- o estado de MediaMTX, NGINX/TLS, portas, firewall local e Samba;
-- os contratos compartilhados que a Engenharia TV deverá herdar sem retrabalho.
+```text
+ROTINA/OPERADOR
+→ SERVICE/PROCESSO
+→ SCRIPT/EXECSTART/EXECSTARTPRE
+→ DIRETÓRIO/PLAYLIST
+→ ASSET REAL
+→ CODEC/FORMATO/TAMANHO/BITRATE
+→ FFMPEG/ENGINE
+→ MEDIAMTX
+→ HLS/RTSP/RTMP
+→ NGINX/TLS
+→ DOMÍNIO/SUBDOMÍNIO
+→ CLIENTE
+```
 
-## Candidate
+A reavaliação do projeto só começa depois desse mapa existir.
 
-`candidates/CHG-004X/studiosat-full-rayx-v2.sh`
+## Escopo obrigatório v3.1
 
-O candidate foi submetido a `bash -n` antes da publicação.
+### Host e recursos
 
-## O que o raio-X coleta
+- hardware/CPU/RAM/swap/kernel/OS;
+- discos, filesystems, mounts, inodes;
+- load, top, vmstat/iostat quando disponíveis;
+- erros/warnings recentes de kernel.
 
-### Host
+### Todas as ferramentas e pacotes
 
-CPU, RAM, swap, load, disco, inodes, mounts, kernel, OS, versões e pacotes relevantes, processos e amostras de recursos.
+- todos os pacotes conhecidos pelo `dpkg-query`;
+- pacotes marcados manualmente;
+- Snap/Flatpak se existirem;
+- Python/npm/gems quando existirem;
+- paths e versões de ferramentas/runtimes comuns de mídia, web, rede, compilação e bancos;
+- `/usr/local/bin` e `/usr/local/sbin` relevantes, com metadata/hashes e conteúdo sanitizado dos scripts TPS/StudioSat.
 
-### systemd
+### Todos os serviços
 
-Para as 9 stations e para componentes compartilhados:
+- todos os services carregados;
+- todos running;
+- todos failed;
+- todos unit files;
+- sockets/path/mount units;
+- para cada service ativo/falhado: unit, show, status, ExecStart/Pre/Post, WorkingDirectory, PID, usuário/grupo, restart policy, drop-ins, uso de recursos.
 
-- unit completa;
-- estado;
-- PID;
-- timestamp de start;
-- `ExecStart`;
-- `ExecStartPre`;
-- restart policy;
-- limites de CPU/RAM;
-- drop-ins;
-- dependências;
-- journal recente;
-- hashes dos arquivos de unit relevantes.
+### Todas as rotinas
 
-### Scripts
+- todos os systemd timers e seus arquivos/detalhes;
+- `/etc/crontab`;
+- cron.d/hourly/daily/weekly/monthly;
+- crontabs de usuários;
+- anacron;
+- `atq` quando disponível;
+- init.d/rc.local;
+- inventário logrotate.
 
-Inventário, metadata, SHA-256 e cópia sanitizada dos scripts `tps-*`/`studiosat*` em `/usr/local/sbin` e `/usr/local/bin`.
+### Todos os processos e “pastas em execução”
+
+- `ps` completo;
+- árvore de processos;
+- para cada PID acessível: executável, CWD, root e contagem de file descriptors;
+- processos de mídia detalhados;
+- arquivos da biblioteca StudioSat atualmente abertos por processos, via `lsof` quando disponível.
+
+### Rede
+
+- endereços, rotas, rules, neighbors;
+- todos listeners TCP/UDP e processos associados;
+- conexões estabelecidas;
+- resumo de sockets;
+- counters das interfaces em janela de 5 s;
+- firewall local UFW/nftables/iptables quando disponível.
+
+### Filesystem operacional
+
+Inventário/uso de espaço de `/srv`, `/var/www`, `/opt`, `/usr/local`, `/etc/nginx`, `/etc/systemd/system`, além da árvore específica de cada station. Para cada station registra ownership, permissões, tamanho, inode, link count, mtime, symlinks e hardlinks.
+
+### NGINX, sites, domínios e subdomínios
+
+- `nginx -t`;
+- configuração completa sanitizada;
+- arquivos e hashes de config;
+- `server_name`, `listen`, `root`, `alias`, `location`, `proxy_pass`, `fastcgi_pass`, redirects;
+- detecção adicional de Apache/Caddy/HAProxy se existirem;
+- nomes descobertos no NGINX somados aos nomes dos certificados Certbot;
+- DNS A/AAAA/CNAME quando `dig` estiver disponível;
+- HTTP e HTTPS reais seguindo redirects;
+- URL efetiva, connect time, TTFB, total time, bytes e speed_download;
+- certificado TLS remoto, validade, issuer e SAN.
+
+**Limite factual:** registros DNS que existam somente no provedor DNS e não apareçam no NGINX/certificados deste host não podem ser enumerados com garantia apenas pelo servidor. Esse inventário exige acesso à zona/provedor DNS. O raio-X identifica e testa todos os hostnames descobertos localmente e registra padrões/wildcards não diretamente testáveis.
 
 ### MediaMTX
 
-Processo, listeners, unit, configs candidatas, hashes, configs sanitizadas, API de paths/config e estado observado das 9 stations.
-
-### NGINX/TLS
-
-`nginx -t`, configuração sanitizada, server names, routes/proxies, arquivos/hashes, certificados e timers Certbot. `certbot renew --dry-run` NÃO é executado.
-
-### Rede/segurança
-
-Listeners TCP/UDP, endereços, rotas, resolução DNS e firewall local disponível (UFW/iptables/nftables).
+- unit/show/status/journal;
+- processo;
+- listeners;
+- configs candidatas, hashes e cópia sanitizada;
+- API global/paths;
+- sessões RTMP/RTSP/HLS/WebRTC/SRT quando endpoints da versão suportarem;
+- métricas quando disponíveis;
+- estado/path/tracks individual das nove stations.
 
 ### Samba/ingest
 
-Processos, listeners, `testparm`, `smbstatus` e configuração sanitizada.
+- services/listeners;
+- `testparm`;
+- `smbstatus`;
+- `smb.conf` sanitizado;
+- paths e propriedades relevantes dos shares.
 
-### Filesystem e mídia
+### Todas as nove emissoras
 
-Para cada station:
+Para `radioprincipal`, `radiopop`, `radiorock`, `radioclassicas`, `radiocountry`, `tvkids`, `tvteens`, `tvviva`, `tvmaisjovem`:
 
-- árvore atual até profundidade controlada;
-- ownership/permissões/mtime/tamanho;
-- sizes por subdiretório;
-- symlinks e hardlinks;
-- inventários `incoming`, `quarantine`, `canonical`, `ready`, `playlists`, `state`, `graphics`, `logs`, `archive`;
-- contagem de conteúdo elegível em `ready/`;
-- playlist ativa, hash e referências ausentes;
-- até 3 amostras de metadata `ffprobe`, sem decode integral.
+- unit e estado real;
+- PID/processo/cmdline/CWD/executável;
+- FDs/lsof quando disponível;
+- journal recente;
+- árvore física completa da station;
+- `du`, permissões, symlinks/hardlinks;
+- origem corrente inferível por playlist + FDs abertos;
+- playlist ativa, hash, stat, conteúdo sanitizado;
+- TODAS as referências `file` e se existem ou não;
+- `ready`, `canonical` e demais diretórios existentes.
 
-### Streams
+### Todos os assets locais das stations
 
-Para as 9 stations:
+Para todos os arquivos de mídia reconhecidos nas extensões coletadas, sem limitar a três amostras:
 
-- `systemd`;
-- MediaMTX `ready`/tracks;
-- HLS local seguindo redirects;
-- freshness HLS;
-- endpoint público conhecido.
+```text
+path relativo
+bytes
+extensão
+MIME
+mtime
+inode
+hardlink count
+format_name
+duration
+bit_rate
+audio codec
+sample rate
+channels
+video codec
+width
+height
+pix_fmt
+r_frame_rate
+avg_frame_rate
+```
 
-TV é observada apenas como controle de compatibilidade e não-regressão. Esta change não implementa nem corrige a vertical TV.
+O `ffprobe` é limitado por timeout e não faz transcode nem decode integral.
+
+### Formatos de saída e testes reais
+
+Por station:
+
+- MediaMTX ready/tracks;
+- HLS local com HTTP final;
+- comparação do manifest após 4 s para freshness;
+- download de segmento quando resolvível, medindo connect/TTFB/total/speed/size;
+- `ffprobe` HLS;
+- `ffprobe` RTSP TCP;
+- `ffprobe` RTMP;
+- probes HTTP/HTTPS de roots e caminhos HLS públicos candidatos conhecidos;
+- nenhuma falha de um protocolo é automaticamente interpretada como outage sem confrontar as demais evidências.
+
+### Velocidade
+
+O raio-X mede desempenho do caminho real, não executa um benchmark agressivo externo:
+
+```text
+HTTP connect time
+HTTP TTFB
+HTTP total time
+HTTP bytes
+HTTP speed_download
+HLS segment speed_download
+HLS segment size
+network RX/TX delta de 5 s
+vmstat/iostat quando disponíveis
+```
+
+Não será usado speedtest.net nem teste saturando link de produção nesta change.
 
 ## Garantia operacional
 
-O script NÃO executa:
+É proibido ao FULL RAY-X:
 
 ```text
-apt install/remove
 systemctl start/stop/restart/reload/enable/disable
 reboot
+apt install/remove/upgrade
 nginx reload
 certbot renew
 playlist generation
+edição de unit/config
 mv/rm de mídia
-edição de MediaMTX
-edição de NGINX
-edição de systemd
-containers
-VMs
+containers/VMs
 ```
 
-O único efeito esperado é criar `/tmp/studiosat-full-rayx-<host>-<timestamp>/`, seu `.tar.gz` e `.sha256`.
+O único efeito persistente fora de leituras/probes é criar o diretório e pacote de evidência em `/tmp`.
+
+## Custo esperado
+
+Ao contrário do antigo preflight, este inventário faz `ffprobe` sequencial de todos os assets reconhecidos. Portanto pode demorar. Ele não executa em paralelo para evitar pico desnecessário de CPU/I/O. Recomenda-se executá-lo com prioridade reduzida (`nice`, e `ionice` se disponível).
 
 ## PRECHECK
 
@@ -132,61 +239,60 @@ git pull --ff-only
 git status --short
 git rev-parse HEAD
 git log -8 --oneline
-```
 
-Se o working tree estiver alterado ou houver commit concorrente ainda não revisado, STOP e retornar ao SYNC.
-
-Depois:
-
-```bash
-bash -n candidates/CHG-004X/studiosat-full-rayx-v2.sh
+bash -n candidates/CHG-004X/studiosat-full-rayx-v3.sh
 echo "BASH_N_EXIT=$?"
-sha256sum candidates/CHG-004X/studiosat-full-rayx-v2.sh
+sha256sum candidates/CHG-004X/studiosat-full-rayx-v3.sh
 ```
 
-`BASH_N_EXIT` deve ser `0`.
+Working tree deve estar limpa e `BASH_N_EXIT=0`.
 
 ## EXECUTE
 
+Preferido, se `ionice` existir:
+
 ```bash
-sudo bash candidates/CHG-004X/studiosat-full-rayx-v2.sh
+sudo nice -n 15 ionice -c2 -n7 bash candidates/CHG-004X/studiosat-full-rayx-v3.sh
 ```
 
-## Saída esperada
+Fallback sem `ionice`:
+
+```bash
+sudo nice -n 15 bash candidates/CHG-004X/studiosat-full-rayx-v3.sh
+```
+
+## Saída
 
 ```text
-ARCHIVE=/tmp/studiosat-full-rayx-<host>-<timestamp>.tar.gz
-ARCHIVE_SHA256=/tmp/studiosat-full-rayx-<host>-<timestamp>.tar.gz.sha256
+FULL_RAYX_COMPLETE=YES
+RAYX_VERSION=3.1
 READ_ONLY=YES
+OUTPUT_DIR=/tmp/studiosat-full-rayx-v3-...
+ARCHIVE=/tmp/studiosat-full-rayx-v3-....tar.gz
+ARCHIVE_SHA256=/tmp/studiosat-full-rayx-v3-....tar.gz.sha256
 ```
 
-## Pós-execução
+Validar:
 
-1. verificar SHA do archive;
-2. enviar `.tar.gz` + `.sha256` em canal privado;
-3. não publicar pacote bruto no GitHub público;
-4. não reiniciar Country;
-5. Engenharia Rádio/Core analisará o pacote integral;
-6. reler `main` e mudanças da Engenharia TV;
-7. publicar relatório sanitizado;
-8. reescrever matriz P0/P1/P2, registry e Change Queue conforme necessário;
-9. reavaliar integralmente `RADIO_IMPLEMENTATION_PLAN` e `SHARED_FOUNDATION_HANDOFF_TO_TV`;
-10. somente então liberar o primeiro comando mutável.
+```bash
+sha256sum -c /tmp/studiosat-full-rayx-v3-*.tar.gz.sha256
+```
 
-## Gate de conclusão
+## Depois
 
-CHG-004X fecha somente quando a análise produzir uma decisão explícita para:
+Enviar `.tar.gz` e `.sha256` em canal privado. Não publicar o pacote bruto no GitHub público. Nenhum restart de Country/Rock/TV/Core será autorizado até a análise integral.
 
-- Country;
-- Rock;
-- Principal/Pop/Clássicas;
-- generator/playlist;
-- canonical/ready;
-- engine Rádio;
-- MediaMTX;
-- NGINX/TLS;
-- ingest/Samba;
-- systemd;
-- security;
-- pontos compartilhados com TV;
-- sequência revisada de implantação.
+## Gate de fechamento
+
+CHG-004X só fecha quando o conteúdo coletado permitir publicar:
+
+- AS-IS completo;
+- mapa ferramenta → rotina → serviço → script → diretório → asset → engine → MediaMTX → NGINX → domínio;
+- matriz por station de origem, playlist, formatos de entrada e saída, tamanho e velocidade;
+- inventário de todos sites/domínios/subdomínios localmente descobertos e testados;
+- KEEP / FIX / REFACTOR / REPLACE / REMOVE;
+- nova matriz P0/P1/P2;
+- plano Rádio reavaliado;
+- handoff Core/TV revisado;
+- nova Change Queue;
+- primeira mudança mutável com rollback explícito.
