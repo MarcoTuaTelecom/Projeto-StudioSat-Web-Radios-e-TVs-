@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Radio Studio Sat — Player</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<style>
+:root{--bg:#25272a;--panel:#111316;--panel2:#191c20;--text:#f5f6f7;--muted:#a9afb7;--accent:#d71920;--ok:#2ecc71;--warn:#f5a623}
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
+body{display:grid;grid-template-rows:auto 1fr auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid #3a3d42;background:#202225}
+.brand{font-weight:900;letter-spacing:.12em}.live{font-size:.78rem;padding:7px 10px;border-radius:999px;background:#8b1116;color:#fff;font-weight:800}
+main{position:relative;display:grid;place-items:center;padding:24px}.hero{width:min(980px,92vw);text-align:center}.eyebrow{font-size:.8rem;letter-spacing:.18em;color:var(--muted);text-transform:uppercase}.station{font-size:clamp(2.4rem,7vw,6.5rem);line-height:.95;margin:12px 0 8px;font-weight:950;letter-spacing:-.05em}.track{font-size:clamp(1.1rem,2.2vw,1.6rem);color:#d8dbe0;margin-bottom:8px}.artist{color:var(--muted)}
+.station-grid{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:10px;margin:34px auto 0;max-width:900px}.station-grid button{border:1px solid #45484e;background:#2e3136;color:#fff;padding:14px 10px;border-radius:12px;font-weight:800;cursor:pointer}.station-grid button.active{border-color:#fff;background:#3a3e44}
+.status{margin-top:22px;color:var(--muted);font-size:.9rem}.status.ok{color:var(--ok)}.status.err{color:#ff7676}
+.controls{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;padding:18px 28px calc(18px + env(safe-area-inset-bottom));background:rgba(12,13,15,.96);border-top:1px solid #34373c}.left{min-width:0}.now{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sub{font-size:.85rem;color:var(--muted);margin-top:4px}.center{display:flex;align-items:center;gap:12px}.round{width:52px;height:52px;border:0;border-radius:50%;background:#fff;color:#111;font-size:1.25rem;cursor:pointer}.right{display:flex;justify-content:flex-end;align-items:center;gap:10px}.icon{border:0;background:transparent;color:#fff;font-size:1.2rem;cursor:pointer}input[type=range]{width:150px;accent-color:#fff}
+@media(max-width:800px){.station-grid{grid-template-columns:repeat(2,1fr)}.controls{grid-template-columns:1fr auto}.right{grid-column:1/-1;justify-content:center}.station{font-size:12vw}}
+</style>
+</head>
+<body>
+<header><div class="brand">RADIO STUDIO SAT</div><div class="live">AO VIVO</div></header>
+<main>
+  <div class="hero">
+    <div class="eyebrow">Emissora selecionada</div>
+    <div id="stationName" class="station">PRINCIPAL</div>
+    <div id="track" class="track">Programação ao vivo</div>
+    <div id="artist" class="artist">Radio Studio Sat</div>
+    <div class="station-grid" id="stationGrid"></div>
+    <div id="status" class="status">Preparando áudio…</div>
+  </div>
+</main>
+<div class="controls">
+  <div class="left"><div id="now" class="now">Radio Studio Sat — Principal</div><div id="codec" class="sub">Áudio ao vivo</div></div>
+  <div class="center"><button id="play" class="round" aria-label="Reproduzir">▶</button></div>
+  <div class="right"><button id="mute" class="icon" aria-label="Silenciar">🔊</button><input id="volume" type="range" min="0" max="1" step="0.01" value="0.8"><button id="full" class="icon" aria-label="Tela cheia">⛶</button></div>
+</div>
+<audio id="audio" preload="none" playsinline></audio>
+<script>
+const stations=[
+ {slug:'radioprincipal',name:'Principal'},
+ {slug:'radiopop',name:'Pop'},
+ {slug:'radiorock',name:'Rock'},
+ {slug:'radioclassicas',name:'Clássicas'},
+ {slug:'radiocountry',name:'Country'}
+];
+const audio=document.getElementById('audio'), play=document.getElementById('play'), mute=document.getElementById('mute'), volume=document.getElementById('volume'), statusEl=document.getElementById('status');
+let hls=null,current=stations[0];
+function manifest(s){return `/${s.slug}/index.m3u8`;}
+function setStatus(t,c=''){statusEl.textContent=t;statusEl.className='status '+c;}
+function renderButtons(){const g=document.getElementById('stationGrid');g.innerHTML='';stations.forEach(s=>{const b=document.createElement('button');b.textContent=s.name;b.className=s.slug===current.slug?'active':'';b.onclick=()=>selectStation(s,true);g.appendChild(b);});}
+function attach(url){if(hls){hls.destroy();hls=null;} audio.pause();audio.removeAttribute('src');audio.load();setStatus('Conectando ao áudio…');
+ if(window.Hls&&Hls.isSupported()){hls=new Hls({enableWorker:true,lowLatencyMode:false,maxBufferLength:30});hls.loadSource(url);hls.attachMedia(audio);hls.on(Hls.Events.MANIFEST_PARSED,()=>setStatus('Áudio pronto','ok'));hls.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal)setStatus('Falha ao carregar o áudio','err');});}
+ else if(audio.canPlayType('application/vnd.apple.mpegurl')){audio.src=url;setStatus('Áudio pronto','ok');}
+ else setStatus('Este navegador não oferece suporte HLS','err');
+}
+async function selectStation(s,autoplay=false){current=s;document.getElementById('stationName').textContent=s.name.toUpperCase();document.getElementById('now').textContent=`Radio Studio Sat — ${s.name}`;renderButtons();attach(manifest(s));history.replaceState(null,'',`/?station=${encodeURIComponent(s.slug)}`);if(autoplay){try{await audio.play();}catch(e){setStatus('Clique em ▶ para iniciar o áudio');}}}
+play.onclick=async()=>{try{if(audio.paused){await audio.play();play.textContent='❚❚';setStatus('Reproduzindo ao vivo','ok');}else{audio.pause();play.textContent='▶';}}catch(e){setStatus('Clique novamente para permitir a reprodução','err');}};
+audio.addEventListener('play',()=>play.textContent='❚❚');audio.addEventListener('pause',()=>play.textContent='▶');audio.addEventListener('error',()=>setStatus('Erro de reprodução do áudio','err'));
+volume.oninput=()=>{audio.volume=Number(volume.value);audio.muted=false;mute.textContent=audio.volume===0?'🔇':'🔊';};audio.volume=.8;
+mute.onclick=()=>{audio.muted=!audio.muted;mute.textContent=audio.muted?'🔇':'🔊';};
+document.getElementById('full').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();};
+const wanted=new URLSearchParams(location.search).get('station');current=stations.find(s=>s.slug===wanted)||stations[0];selectStation(current,false);
+</script>
+</body>
+</html>
