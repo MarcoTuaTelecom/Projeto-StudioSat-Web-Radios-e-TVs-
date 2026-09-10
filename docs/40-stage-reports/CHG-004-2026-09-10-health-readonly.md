@@ -117,11 +117,13 @@ sha256sum candidates/CHG-004/studiosat-health-readonly.sh
 
 ## EXECUTE
 
-Somente após PRECHECK PASS:
+O candidate está versionado como arquivo comum no GitHub. Para não alterar permissões do working tree, execute explicitamente pelo Bash:
 
 ```bash
-sudo candidates/CHG-004/studiosat-health-readonly.sh
+sudo bash candidates/CHG-004/studiosat-health-readonly.sh
 ```
+
+Não usar `chmod +x` apenas para esta execução.
 
 ## Saída esperada
 
