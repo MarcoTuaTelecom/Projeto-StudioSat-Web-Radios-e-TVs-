@@ -9,6 +9,7 @@ Diretriz vigente: **IN-PLACE FIRST / NO CONTAINERS / NO VMs / NO DUPLICATE PLATF
 Documentos normativos atuais:
 
 - `docs/90-evidencias/BASELINE_OFICIAL_AS_IS_2026-09-10_v1.0.md`
+- `docs/90-evidencias/HEALTH_BASELINE_2026-09-10T165741Z.md`
 - `docs/00-core/COMPONENT_DISPOSITION_v1.0.md`
 - `docs/00-core/DEPENDENCY_MAP_AS_IS_v1.0.md`
 - `docs/30-execucao/INCIDENT_REGISTER.md`
@@ -36,7 +37,7 @@ Até CHG-004B PASS/DONE:
 | CHG-002 | Channels Registry inicial | Core | **DONE / REVALIDATION PENDING** | atualizar após baseline locked |
 | CHG-003 | Core Contract v0.1 | Core + TV + Rádio | **DONE / ACCEPTED** | três domínios |
 | CHG-004X | FULL RAY-X v3.1 exaustivo | Rádio + Core | **DONE / PASS / ANALYZED** | archive íntegro; 1035/1035 manifest; relatório AS-IS publicado |
-| CHG-004B | **Baseline Oficial Operacional v1** | Core + Rádio | **READY — ÚNICA PRÓXIMA AÇÃO NO HOST** | health atual + raw unit/drop-in hashes + lock do baseline |
+| CHG-004B | **Baseline Oficial Operacional v1** | Core + Rádio | **VERIFYING — SNAPSHOT RECEBIDO/ANALISADO** | sidecar `.sha256` do host + SHA raw da health tool ainda precisam ser comprovados antes do `LOCKED` |
 | CHG-R01 | Rádio Principal — generator/playlist escaping | Rádio | **BLOCKED por CHG-004B** | 18/18 itens válidos, zero `Impossible to open`, rotação completa |
 | CHG-R02 | Radio Rock — recovery legado | Rádio + Core | **BLOCKED por CHG-R01** | generator PASS, start controlado, MediaMTX/RTSP/output PASS |
 | CHG-R03 | Rádio HLS — Country AAC pilot | Rádio + Core | **BLOCKED por R01/R02** | HLS real `#EXTM3U`, freshness, áudio, recursos aceitáveis |
@@ -45,20 +46,35 @@ Até CHG-004B PASS/DONE:
 | CHG-SEC-* | Samba/permissões/firewall/MediaMTX ACL/TLS | Core | **BLOCKED / INCIDENTES REGISTRADOS** | changes próprias sem misturar escopo |
 | CHG-TV-* | TVKIDS/TVTEENS/TVVIVA/TVMAISJOVEM | Engenharia TV | **TV-OWNED / INTERLOCKS ATIVOS** | seguir handoff; Rádio não altera |
 
-## Estado AS-IS de referência
+## Snapshot CHG-004B recebido — 2026-09-10T16:57:41Z
 
 ```text
-radioprincipal  active / MediaMTX ready / DEGRADED P0
-radiopop        active / MediaMTX ready / legacy healthy; Rádio HLS gap
-radiorock       failed / MediaMTX not ready / P0
-radioclassicas  active / MediaMTX ready / legacy healthy; Rádio HLS gap
-radiocountry    active / MediaMTX ready / reference; Rádio HLS gap
+radioprincipal  degraded / active / MediaMTX ready / RTSP PASS / HLS 500 / 3x Impossible to open em 30m
+radiopop        degraded / active / MediaMTX ready / RTSP PASS / HLS 500
+radiorock       failed   / failed / MediaMTX not ready / RTSP FAIL / HLS 404 / ready=10
+radioclassicas  degraded / active / MediaMTX ready / RTSP PASS / HLS 500
+radiocountry    degraded / active / MediaMTX ready / RTSP PASS / HLS 500
 
-tvkids          active / MediaMTX ready / DEGRADED / TV-OWNED
-tvteens         active / MediaMTX ready / TV-OWNED restart interlock
-tvviva          active / MediaMTX ready / TV-OWNED restart interlock
-tvmaisjovem     active / MediaMTX ready / TV-OWNED restart interlock
+tvkids          degraded / active / MediaMTX ready / RTSP PASS / HLS PASS+CHANGING / 7 DTS em 30m
+tvteens         healthy  / active / MediaMTX ready / RTSP PASS / HLS PASS+CHANGING
+tvviva          healthy  / active / MediaMTX ready / RTSP PASS / HLS PASS+CHANGING
+tvmaisjovem     healthy  / active / MediaMTX ready / RTSP PASS / HLS PASS+CHANGING
 ```
+
+Core no mesmo snapshot:
+
+```text
+tps-mediamtx.service active PID 217466
+nginx.service        active PID 1060
+nginx -t             PASS
+root disk            17%
+MemAvailable         7,164,780 kB
+load1                0.31
+MediaMTX API          PASS
+www.radio portal      HTTP 200
+```
+
+PIDs/start timestamps das nove stations e PIDs de MediaMTX/NGINX são os mesmos do FULL RAY-X; os 9 hashes estáticos críticos também são iguais. Raw hashes das units/drop-ins já foram capturados em `registry/critical-artifacts-baseline.yaml`.
 
 ## Regra PRE/POST obrigatória
 
@@ -85,14 +101,39 @@ Hashes estáticos fora do escopo não podem mudar. Qualquer hash alterado precis
 
 Nenhum restart é “só um restart”. Registrar em `RESTART_REGISTER.md` PID/timestamp/health antes e depois, comando, journal, impacto e resultado.
 
-## Próxima execução autorizada
+## Próxima ação autorizada no host
 
-Somente:
+**Somente prova read-only de integridade/identidade. Nenhuma mutação.**
+
+Executar, no host:
 
 ```bash
-sudo nice -n 10 bash candidates/CHG-004B/studiosat-health-baseline-v1.sh
+cd /root/Projeto-StudioSat-Web-Radios-e-TVs-
+
+SHA_FILE=/tmp/studiosat-health-baseline-ns1-20260910T165741Z.tar.gz.sha256
+ARCHIVE=/tmp/studiosat-health-baseline-ns1-20260910T165741Z.tar.gz
+
+echo '===== SERVER SIDECAR ====='
+cat "$SHA_FILE"
+
+echo '===== VERIFY SERVER SIDECAR ====='
+sha256sum -c "$SHA_FILE"
+
+echo '===== HEALTH TOOL RAW SHA256 ====='
+sha256sum candidates/CHG-004B/studiosat-health-baseline-v1.sh
+
+echo '===== GIT ====='
+git status --short
+git rev-parse HEAD
 ```
 
-após `git pull`, working tree limpa e `bash -n` PASS.
+Esperado para o archive, se a transferência recebida corresponde ao arquivo gerado no host:
 
-Nenhuma mutação deve ser executada depois do snapshot até que CHG-004B seja analisada e fechada no GitHub.
+```text
+5d6e0cb9630329cc06444c4592e989cb7adfdf818a71182123724f74f316433a  /tmp/studiosat-health-baseline-ns1-20260910T165741Z.tar.gz
+...: OK
+```
+
+O SHA da health tool deve ser devolvido como evidência; não presumir o valor.
+
+Nenhuma mutação deve ser executada até a CHG-004B ser convertida para `DONE / PASS / LOCKED` no GitHub.
