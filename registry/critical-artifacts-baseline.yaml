@@ -1,12 +1,21 @@
 schema_version: STUDIOSAT-CRITICAL-ARTIFACTS-1
-status: provisional-until-CHG-004B-live-hash-capture
-observed_at_utc: 2026-09-10T15:35:03Z
-evidence: FULL-RAYX-v3.1
-archive_sha256: 338c3f808aff8d70c5843daf88bfd7169fbb289704cabe937b60425511f26a6f
+status: verification-pending-server-sidecar
+observed_at_utc: 2026-09-10T16:57:41Z
+evidence:
+  full_rayx: FULL-RAYX-v3.1
+  full_rayx_archive_sha256: 338c3f808aff8d70c5843daf88bfd7169fbb289704cabe937b60425511f26a6f
+  health_baseline: CHG-004B-20260910T165741Z
+  health_archive_sha256_received_copy: 5d6e0cb9630329cc06444c4592e989cb7adfdf818a71182123724f74f316433a
+  health_archive_server_sidecar_verified: false
+  health_git_head: 58b429a359c8f9b8e342319cd2380de74b0bc733
+  health_worktree_clean: true
+  health_tool_version: 1.0-candidate.1
+  health_tool_raw_sha256_from_host: pending
 policy:
   static_artifact_hash_change_requires_change_id: true
   dynamic_playlist_hashes_are_tracked_but_may_change_only_in_authorized_change: true
-  unit_and_dropin_raw_hashes: pending_CHG_004B
+  unit_and_dropin_raw_hashes: captured
+  baseline_lock_requires_server_sidecar_match: true
 
 static_artifacts:
   - path: /usr/local/sbin/tps-generate-playlist
@@ -67,4 +76,44 @@ dynamic_playlists:
     sha256: 7bfc6117cc3b74652aea17c5c2dbadf716542de489326deb4dbd43658da7f266
 
 unit_hashes:
-  note: "Não inferir hashes dos unit files a partir de systemctl cat. A CHG-004B captura SHA-256 dos FragmentPath e DropInPaths crus diretamente do host e este registry será atualizado antes da primeira mutação."
+  radioprincipal:
+    unit:
+      path: /etc/systemd/system/tps-radioprincipal-playout.service
+      sha256: d57cd94cba7c8fc4975cba927c922ffaae2d32e460ccf3aa88558cb1acccec58
+    dropins:
+      - path: /etc/systemd/system/tps-radioprincipal-playout.service.d/10-tps-production-safety.conf
+        sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48
+      - path: /etc/systemd/system/tps-radioprincipal-playout.service.d/20-fixed-playlist.conf
+        sha256: 2e15e711c624aed3e393abe294446574dc50fbab2eae5559304f90ebf70e83e3
+  radiopop:
+    unit: {path: /etc/systemd/system/tps-radiopop-playout.service, sha256: 0296237e790583c9b3d0a3eecfeda529f13d06eb44f428bba810c5d785704461}
+    dropins:
+      - {path: /etc/systemd/system/tps-radiopop-playout.service.d/10-tps-production-safety.conf, sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48}
+  radiorock:
+    unit: {path: /etc/systemd/system/tps-radiorock-playout.service, sha256: 8b860c8923e46f0ee098f8ed9c8fb9a84becb702ad3efaf44384b1594f123c67}
+    dropins:
+      - {path: /etc/systemd/system/tps-radiorock-playout.service.d/10-tps-production-safety.conf, sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48}
+  radioclassicas:
+    unit: {path: /etc/systemd/system/tps-radioclassicas-playout.service, sha256: 1e658df9b4244ce1fe34d53100e13596ca2d9075426db3bd8ddfc06f54cb8637}
+    dropins:
+      - {path: /etc/systemd/system/tps-radioclassicas-playout.service.d/10-tps-production-safety.conf, sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48}
+  radiocountry:
+    unit: {path: /etc/systemd/system/tps-radiocountry-playout.service, sha256: db31a501da9b25a3ac4b5f46bafa2142353ef83db955900cd4759a145288bc26}
+    dropins:
+      - {path: /etc/systemd/system/tps-radiocountry-playout.service.d/10-tps-production-safety.conf, sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48}
+  tvkids:
+    unit: {path: /etc/systemd/system/tps-tvkids-playout.service, sha256: a2bc8776cc5399f711ee5c9fe7a04f213455ccc8851c1a0e55f7fce68622afee}
+    dropins:
+      - {path: /etc/systemd/system/tps-tvkids-playout.service.d/10-tps-production-safety.conf, sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48}
+  tvteens:
+    unit: {path: /etc/systemd/system/tps-tvteens-playout.service, sha256: 1f8b82b3cdf1fc5fbd711645c4c516136d8d87e8e9f903b017f5a07cf016dea5}
+    dropins:
+      - {path: /etc/systemd/system/tps-tvteens-playout.service.d/10-tps-production-safety.conf, sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48}
+  tvviva:
+    unit: {path: /etc/systemd/system/tps-tvviva-playout.service, sha256: 2d7a24823288dabbdd72f9a3ea3f9a4a8af745cc9ae483d69e538726a4b4080b}
+    dropins:
+      - {path: /etc/systemd/system/tps-tvviva-playout.service.d/10-tps-production-safety.conf, sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48}
+  tvmaisjovem:
+    unit: {path: /etc/systemd/system/tps-tvmaisjovem-playout.service, sha256: 5797e75cfd97bd6c4fbfafbafcc33d802fc315cfd38f66330f75c761a5b49cf0}
+    dropins:
+      - {path: /etc/systemd/system/tps-tvmaisjovem-playout.service.d/10-tps-production-safety.conf, sha256: 102238932b4292834f864d3f0470e5ca3e603d18a29346e8d9ebf7316dcb5d48}
