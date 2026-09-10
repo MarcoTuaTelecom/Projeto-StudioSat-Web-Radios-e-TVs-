@@ -6,114 +6,87 @@ Protocolo obrigatório: `docs/30-execucao/PROTOCOLO_EXECUCAO_SINCRONIZACAO_v0.1.
 
 Diretriz vigente: **IN-PLACE FIRST / NO CONTAINERS / NO VMs / NO DUPLICATE PLATFORM**.
 
-Documentos normativos atuais:
-
-- `docs/90-evidencias/BASELINE_OFICIAL_AS_IS_2026-09-10_v1.0.md`
-- `docs/90-evidencias/HEALTH_BASELINE_2026-09-10T165741Z.md`
-- `docs/00-core/COMPONENT_DISPOSITION_v1.0.md`
-- `docs/00-core/DEPENDENCY_MAP_AS_IS_v1.0.md`
-- `docs/30-execucao/INCIDENT_REGISTER.md`
-- `docs/30-execucao/RESTART_REGISTER.md`
-- `registry/critical-artifacts-baseline.yaml`
-- `docs/00-core/SHARED_FOUNDATION_HANDOFF_TO_TV_v0.2_IN_PLACE.md`
-
 ## Baseline oficial
 
 CHG-004B está **DONE / PASS / LOCKED** com snapshot `2026-09-10T16:57:41Z`.
 
-```text
-archive SHA-256 host/cópia:
-5d6e0cb9630329cc06444c4592e989cb7adfdf818a71182123724f74f316433a
-server sidecar: OK
-health tool raw SHA-256:
-d209a4d0c0d06ad3cdd1dd70bf2496574f85ebdfb6ffc739e3dad4c86f0d05ee
-snapshot Git HEAD: 58b429a359c8f9b8e342319cd2380de74b0bc733
-snapshot working tree: clean
-```
-
-`registry/critical-artifacts-baseline.yaml` é o baseline estático `locked`.
-
-## Trilha crítica
+## Trilha crítica atual
 
 | ID | Mudança | Dono | Estado | Gate |
 |---|---|---|---|---|
-| CHG-000 | Freeze operacional + protocolo | Core | **IN EFFECT** | permanece entre changes |
-| CHG-001 | Core preflight inicial | Core | **DONE / PASS** | histórico |
-| CHG-002 | Channels Registry inicial | Core | **DONE / REVALIDATION PENDING** | atualizar após CHG-R01 POST |
-| CHG-003 | Core Contract v0.1 | Core + TV + Rádio | **DONE / ACCEPTED** | três domínios |
-| CHG-004X | FULL RAY-X v3.1 exaustivo | Rádio + Core | **DONE / PASS / ANALYZED** | fotografia profunda AS-IS |
-| CHG-004B | Baseline Oficial Operacional v1 | Core + Rádio | **DONE / PASS / LOCKED** | sidecar + tool hash + units/drop-ins capturados |
-| CHG-R01 | Rádio Principal — generator/playlist escaping | Rádio | **ACTIVE — APPLY v1.1 READY** | 18/18 candidate + backup + promoção atômica + restart só Principal + health + rotação 18/18 |
-| CHG-R02 | Radio Rock — recovery legado | Rádio + Core | **BLOCKED por CHG-R01** | generator PASS, start controlado, MediaMTX/RTSP/output PASS |
-| CHG-R03 | Rádio HLS — Country AAC pilot | Rádio + Core | **BLOCKED por R01/R02** | HLS real `#EXTM3U`, freshness, áudio, recursos aceitáveis |
-| CHG-R04 | Separação generator Rádio/TV | Rádio + TV + Core | **BLOCKED / DESIGN** | nenhum acoplamento de restart entre domínios |
-| CHG-R05+ | profile/canonical/QC/metadata/fallback/A-V/audio-only/live | Rádio | **BLOCKED / SEQUENCIAL** | gates próprios |
-| CHG-SEC-* | Samba/permissões/firewall/MediaMTX ACL/TLS | Core | **BLOCKED / INCIDENTES REGISTRADOS** | changes próprias sem misturar escopo |
-| CHG-TV-* | TVKIDS/TVTEENS/TVVIVA/TVMAISJOVEM | Engenharia TV | **TV-OWNED / INTERLOCKS ATIVOS** | seguir handoff; Rádio não altera |
+| CHG-R01 | Principal — escaping/playlist atômica | Rádio | **APPLY PASS / ROTATION FINAL PENDING** | generator e playlist corrigidos; PID 1383293; MediaMTX/RTSP PASS; 0 Impossible/NO_READY pós-fix |
+| CHG-R01B | Principal — AAC 48 kHz estéreo + HLS real + limpeza de timestamps/FLV shutdown | Rádio | **ACTIVE / APPLY CANDIDATE READY** | AAC full traversal sem DTS → restart só Principal → RTSP AAC → HLS local → HLS via NGINX/TLS → novo PID sem erros |
+| CHG-R02 | Rock — recovery legado | Rádio + Core | **BLOCKED por R01/R01B** | 10 assets → playlist → start somente Rock → MediaMTX/RTSP PASS |
+| CHG-R03 | HLS das demais rádios | Rádio + Core | **BLOCKED por R01B/R02** | replicar profile comprovado sem quebra por station |
+| CHG-R04 | Separação generator Rádio/TV | Rádio + TV + Core | **BLOCKED / DESIGN** | remover acoplamento restante |
+| CHG-TV-* | TVKIDS/TVTEENS/TVVIVA/TVMAISJOVEM | Engenharia TV | **TV-OWNED** | preservar trabalho e interlocks |
 
-## CHG-R01 — estado comprovado após restart antecipado
+## CHG-R01 — resultado já comprovado
 
-Restart manual em `2026-09-10 17:31:47 UTC`:
+Apply em `2026-09-10T18:15:42Z`:
 
 ```text
-pre PID Principal: 1135303
-post PID Principal: 1363987
-post state: active/running
-MediaMTX: ready=true
-RTSP: PASS
-NeedDaemonReload: yes
+candidate/production playlist: 18/18
+MISSING_OR_TRUNCATED_LINES=0
+FFPROBE_FAILURES=0
+FULL_CONCAT_TRAVERSAL=PASS
+Principal PRE PID=1363987
+Principal POST PID=1383293
+ActiveState=active
+SubState=running
+MediaMTX ready=true
+RTSP mp3 48000 stereo
+impossible_to_open_post=0
+no_ready_media_post=0
+other_process_pids_unchanged=PASS
+other_playlists_unchanged=PASS
 ```
 
-O generator e a playlist permaneceram com os hashes locked antigos. A playlist continua contendo a linha inválida de `Ain't No Mountain High Enough...`; portanto o restart não resolveu a causa.
-
-As outras oito stations, MediaMTX e NGINX mantiveram os PIDs do baseline. O isolamento da station foi comprovado.
-
-**Não executar `systemctl daemon-reload`.** CHG-R01 não modifica unit/drop-ins; a configuração já carregada aponta para o generator e playout paths esperados.
-
-## Concorrência GitHub
-
-A contribuição TV mais recente observada é `d4152ca6f652c5eac3c8ccf49039511dea778d6c`, TVKIDS-owned. Foi revisada e deve ser preservada. Ela não altera o escopo Rádio da CHG-R01.
-
-## Única próxima ação mutável autorizada
-
-Após sincronizar `main`, executar exclusivamente:
+Generator atual Principal:
 
 ```text
-candidates/CHG-R01/apply-radioprincipal-fix-v1.1.sh
+d2ba61daeeaaa89389fe1cc2ed277af68ac12c09b769c2eb9dda1feea9316fcd
 ```
 
-O executor:
+Playlist atual Principal:
 
 ```text
-confere hashes locked
-→ gera candidate em /tmp
-→ valida 18/18 + full traversal
-→ cria backup privado
-→ promove generator v2 atomicamente
-→ gera playlist production atomicamente
-→ revalida 18/18
-→ restart SOMENTE Principal
-→ MediaMTX ready + RTSP
-→ 0 Impossible to open / 0 NO_READY_MEDIA
-→ prova nenhuma outra PID/playlist mudou
-→ gera evidence shareable
+154c3cb081f9a7d7f527ab184739b692c5a930db3fe8ff0659f241e9699b821c
 ```
 
-Se qualquer gate falhar antes da mutação, aborta sem tocar produção. Se falhar depois da mutação, executa rollback dos arquivos; se a falha ocorrer após restart, restaura e reinicia somente a Principal.
+O observer de rotação iniciado em foreground foi interrompido junto com a sessão SSH e deixou apenas `1/18`; isso é falha do método de observação, não evidência de falha do playout. Nova observação deverá ser destacada da sessão (`nohup`/transient unit) após o último restart da Principal.
 
-`apply-radioprincipal-fix-v1.sh` está superseded; **usar somente v1.1**.
+## Por que CHG-R01B existe
 
-Depois do `CHG_R01_IMMEDIATE_RESULT=PASS`, ainda falta o observer read-only:
+A Principal ainda não pode ser declarada 100% para uso público/browser enquanto publica `MPEG-1/2 Audio (MP3)` no MediaMTX. O HLS do MediaMTX não aceita MP3 como codec de áudio para leitura HLS; o profile de entrega precisa ser AAC.
+
+CHG-R01B usa mudança mínima e in-place:
+
+- mantém filesystem, station ID, systemd unit, MediaMTX, NGINX e TLS;
+- mantém o comportamento legado das demais rádios;
+- altera `/usr/local/sbin/tps-playout-radio` somente no branch `radioprincipal`;
+- Principal passa a AAC-LC, 48 kHz, estéreo, 192 kbps;
+- `aresample=48000:async=1:first_pts=0` normaliza saída/timestamps;
+- `-flvflags no_duration_filesize` elimina warnings de duration/filesize no encerramento de stream FLV;
+- antes da mutação executa traversal completo AAC e exige zero warning DTS;
+- depois reinicia somente a Principal;
+- exige MediaMTX ready, RTSP AAC, HLS local real `#EXTM3U`, HLS via NGINX/TLS e journal do novo PID sem erros relevantes;
+- em qualquer falha após promoção, restaura o playout anterior e reinicia somente a Principal.
+
+Candidates:
 
 ```text
-observe-radioprincipal-rotation-v1.sh
+candidates/CHG-R01B/tps-playout-radio-v2-principal-aac.sh
+candidates/CHG-R01B/apply-radioprincipal-aac-hls-v1.sh
 ```
 
-Gate final:
+## Próxima ação autorizada
 
-```text
-ROTATION_RESULT=PASS
-SEEN=18/18
-```
+1. sincronizar `main` sem reset;
+2. `bash -n` nos dois candidates CHG-R01B;
+3. confirmar worktree limpa;
+4. executar `apply-radioprincipal-aac-hls-v1.sh` como root;
+5. somente se `CHG_R01B_RESULT=PASS`, iniciar observer de rotação destacado da sessão;
+6. fechar Principal apenas após `SEEN=18/18` e health POST.
 
-Somente então CHG-R01 fecha e CHG-R02 pode ser liberada.
+Não executar `daemon-reload`, não reiniciar MediaMTX/NGINX e não tocar outra station durante CHG-R01B.
