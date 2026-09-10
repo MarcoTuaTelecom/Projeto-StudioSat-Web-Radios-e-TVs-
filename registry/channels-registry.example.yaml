@@ -1,0 +1,185 @@
+schema_version: STUDIOSAT-REGISTRY-0.1
+
+stations:
+  radioprincipal:
+    station_id: radioprincipal
+    station_class: radio
+    public_name: Studio Sat Principal
+    owner_domain: radio
+    legacy:
+      unit: null
+      media_root: null
+      playlist: null
+    engine:
+      adapter: RadioEngineAdapter
+      implementation: ffmpeg-legacy
+      candidate: liquidsoap-2.4.x
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths:
+        - lab-radio-principal-av
+        - lab-radio-principal-audio
+    health:
+      schema_version: STUDIOSAT-HEALTH-1
+    control:
+      plan_version: STUDIOSAT-PLAN-1
+
+  radiopop:
+    station_id: radiopop
+    station_class: radio
+    public_name: Studio Sat Pop
+    owner_domain: radio
+    engine:
+      adapter: RadioEngineAdapter
+      implementation: ffmpeg-legacy
+      candidate: liquidsoap-2.4.x
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths: [lab-radio-pop-av, lab-radio-pop-audio]
+    health: {schema_version: STUDIOSAT-HEALTH-1}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  radiorock:
+    station_id: radiorock
+    station_class: radio
+    public_name: Studio Sat Rock
+    owner_domain: radio
+    engine:
+      adapter: RadioEngineAdapter
+      implementation: ffmpeg-legacy
+      candidate: liquidsoap-2.4.x
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths: [lab-radio-rock-av, lab-radio-rock-audio]
+    health: {schema_version: STUDIOSAT-HEALTH-1}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  radioclassicas:
+    station_id: radioclassicas
+    station_class: radio
+    public_name: Studio Sat Clássicas
+    owner_domain: radio
+    engine:
+      adapter: RadioEngineAdapter
+      implementation: ffmpeg-legacy
+      candidate: liquidsoap-2.4.x
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths: [lab-radio-classicas-av, lab-radio-classicas-audio]
+    health: {schema_version: STUDIOSAT-HEALTH-1}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  radiocountry:
+    station_id: radiocountry
+    station_class: radio
+    public_name: Studio Sat Country
+    owner_domain: radio
+    engine:
+      adapter: RadioEngineAdapter
+      implementation: ffmpeg-legacy
+      candidate: liquidsoap-2.4.x
+    media:
+      canonical_profile: STUDIOSAT-RADIO-AV-V1
+      profile_version: draft
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths: [lab-radio-country-av, lab-radio-country-audio]
+    health: {schema_version: STUDIOSAT-HEALTH-1}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  tvkids:
+    station_id: tvkids
+    station_class: tv
+    public_name: TVKIDS
+    owner_domain: tv
+    engine:
+      adapter: TvEngineAdapter
+      implementation: ffmpeg-ffconcat
+      candidate: null
+    media:
+      canonical_profile: TVKIDS-V1
+      profile_version: 1
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths: [lab-tv-tvkids-av]
+    health: {schema_version: STUDIOSAT-HEALTH-1}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  tvteens:
+    station_id: tvteens
+    station_class: tv
+    public_name: TVTEENS
+    owner_domain: tv
+    engine:
+      adapter: TvEngineAdapter
+      implementation: ffmpeg-ffconcat
+      candidate: null
+    media:
+      canonical_profile: STUDIOSAT-TV-V1-DRAFT
+      profile_version: draft
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths: [lab-tv-tvteens-av]
+    health: {schema_version: STUDIOSAT-HEALTH-1}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  tvviva:
+    station_id: tvviva
+    station_class: tv
+    public_name: TVVIVA
+    owner_domain: tv
+    engine:
+      adapter: TvEngineAdapter
+      implementation: ffmpeg-ffconcat
+      candidate: null
+    media:
+      canonical_profile: STUDIOSAT-TV-V1-DRAFT
+      profile_version: draft
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths: [lab-tv-tvviva-av]
+    health: {schema_version: STUDIOSAT-HEALTH-1}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+  tvmaisjovem:
+    station_id: tvmaisjovem
+    station_class: tv
+    public_name: TVMAISJOVEM
+    owner_domain: tv
+    engine:
+      adapter: TvEngineAdapter
+      implementation: ffmpeg-ffconcat
+      candidate: null
+    media:
+      canonical_profile: STUDIOSAT-TV-V1-DRAFT
+      profile_version: draft
+    output:
+      publish_path: null
+      public_urls: []
+      lab_paths: [lab-tv-tvmaisjovem-av]
+    health: {schema_version: STUDIOSAT-HEALTH-1}
+    control: {plan_version: STUDIOSAT-PLAN-1}
+
+# IMPORTANTE:
+# Campos null/placeholder devem ser preenchidos somente a partir do Core preflight atual.
+# Não transformar valores históricos em verdade operacional sem reconfirmação.
