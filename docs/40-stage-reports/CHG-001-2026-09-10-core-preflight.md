@@ -187,7 +187,7 @@ Antes de remediar:
 
 **PASS.** O objetivo de fotografar a plataforma foi atingido sem mudança intencional de lifecycle/configuração/mídia. O pacote e seu hash são íntegros e suficientes para iniciar o registry real.
 
-A coleta também revelou lacunas no próprio script; elas devem ser corrigidas na versão canônica antes do próximo uso:
+A coleta também revelou lacunas no próprio script; elas foram corrigidas na versão canônica v1.1 antes do próximo uso:
 
 - seguir redirects no probe HLS;
 - capturar unit real `tps-mediamtx.service`, status/journal/dependências;
@@ -199,6 +199,6 @@ A coleta também revelou lacunas no próprio script; elas devem ser corrigidas n
 
 ## Próximo gate
 
-- CHG-002: publicar `registry/channels-registry.yaml` real — realizado a partir desta evidência.
-- CHG-003: Core Contract v0.1 — já aceito como estratégia conjunta TV/Rádio/Core.
-- Próxima execução no host: **CHG-004 — Health read-only**, após novo SYNC do `main`.
+- CHG-002: `registry/channels-registry.yaml` real — **DONE/PASS**.
+- CHG-003: `CORE CONTRACT v0.1` — **Core + Engenharia TV aceitos; aceite formal da Engenharia Rádio ainda pendente**.
+- CHG-004: Health read-only — candidate pode ser revisada, mas **execução bloqueada até CHG-003 fechar**.
