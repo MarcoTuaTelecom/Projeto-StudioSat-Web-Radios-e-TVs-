@@ -10,16 +10,21 @@ Diretriz vigente: **IN-PLACE FIRST / NO CONTAINERS / NO VMs / NO DUPLICATE PLATF
 
 CHG-004B está **DONE / PASS / LOCKED** com snapshot `2026-09-10T16:57:41Z`.
 
+## Prioridade operacional vigente
+
+Por determinação do owner em `2026-09-10`, a estabilização/reconstrução da **TVKIDS** é a única mudança mutável prioritária até o fechamento de `CHG-TVKIDS-001` ou rollback formal. `CHG-R01B` permanece preservada e volta à fila após a TVKIDS.
+
 ## Trilha crítica atual
 
 | ID | Mudança | Dono | Estado | Gate |
 |---|---|---|---|---|
 | CHG-R01 | Principal — escaping/playlist atômica | Rádio | **APPLY PASS / ROTATION FINAL PENDING** | generator e playlist corrigidos; PID 1383293; MediaMTX/RTSP PASS; 0 Impossible/NO_READY pós-fix |
-| CHG-R01B | Principal — AAC 48 kHz estéreo + HLS real + limpeza de timestamps/FLV shutdown | Rádio | **ACTIVE / APPLY CANDIDATE READY** | AAC full traversal sem DTS → restart só Principal → RTSP AAC → HLS local → HLS via NGINX/TLS → novo PID sem erros |
+| CHG-R01B | Principal — AAC 48 kHz estéreo + HLS real + limpeza de timestamps/FLV shutdown | Rádio | **PAUSED / PRESERVADA — aguarda CHG-TVKIDS-001** | candidate já preparado; retomar somente após checkpoint TVKIDS |
+| CHG-TVKIDS-001 | Reconstrução integral da cadeia de produção TVKIDS | TV | **ACTIVE / PACKAGE READY** | certificar 15/15 → corrigir timestamps se necessário → manifest/plan dedicado → cutover só TVKIDS → MediaMTX/RTSP/HLS → quatro FQDNs → 0 DTS → health PASS |
 | CHG-R02 | Rock — recovery legado | Rádio + Core | **BLOCKED por R01/R01B** | 10 assets → playlist → start somente Rock → MediaMTX/RTSP PASS |
 | CHG-R03 | HLS das demais rádios | Rádio + Core | **BLOCKED por R01B/R02** | replicar profile comprovado sem quebra por station |
-| CHG-R04 | Separação generator Rádio/TV | Rádio + TV + Core | **BLOCKED / DESIGN** | remover acoplamento restante |
-| CHG-TV-* | TVKIDS/TVTEENS/TVVIVA/TVMAISJOVEM | Engenharia TV | **TV-OWNED** | preservar trabalho e interlocks |
+| CHG-R04 | Separação generator Rádio/TV | Rádio + TV + Core | **PARCIALMENTE ENDEREÇADA POR CHG-TVKIDS-001** | TVKIDS ganha builder dedicado; restante da separação continua como change própria |
+| CHG-TV-002+ | TVTEENS/TVVIVA/TVMAISJOVEM | Engenharia TV | **BLOCKED por TVKIDS** | replicar somente após TVKIDS comprovada |
 
 ## CHG-R01 — resultado já comprovado
 
@@ -56,37 +61,42 @@ Playlist atual Principal:
 
 O observer de rotação iniciado em foreground foi interrompido junto com a sessão SSH e deixou apenas `1/18`; isso é falha do método de observação, não evidência de falha do playout. Nova observação deverá ser destacada da sessão (`nohup`/transient unit) após o último restart da Principal.
 
-## Por que CHG-R01B existe
+## CHG-R01B — estado preservado
 
-A Principal ainda não pode ser declarada 100% para uso público/browser enquanto publica `MPEG-1/2 Audio (MP3)` no MediaMTX. O HLS do MediaMTX não aceita MP3 como codec de áudio para leitura HLS; o profile de entrega precisa ser AAC.
+A Principal ainda precisa do profile AAC/HLS preparado em `CHG-R01B`. Os candidates permanecem no repositório e não são descartados. A mudança está temporariamente pausada para cumprir a prioridade explícita de reconstrução da TVKIDS e a regra de uma alteração mutável por vez.
 
-CHG-R01B usa mudança mínima e in-place:
-
-- mantém filesystem, station ID, systemd unit, MediaMTX, NGINX e TLS;
-- mantém o comportamento legado das demais rádios;
-- altera `/usr/local/sbin/tps-playout-radio` somente no branch `radioprincipal`;
-- Principal passa a AAC-LC, 48 kHz, estéreo, 192 kbps;
-- `aresample=48000:async=1:first_pts=0` normaliza saída/timestamps;
-- `-flvflags no_duration_filesize` elimina warnings de duration/filesize no encerramento de stream FLV;
-- antes da mutação executa traversal completo AAC e exige zero warning DTS;
-- depois reinicia somente a Principal;
-- exige MediaMTX ready, RTSP AAC, HLS local real `#EXTM3U`, HLS via NGINX/TLS e journal do novo PID sem erros relevantes;
-- em qualquer falha após promoção, restaura o playout anterior e reinicia somente a Principal.
-
-Candidates:
+Candidates preservados:
 
 ```text
 candidates/CHG-R01B/tps-playout-radio-v2-principal-aac.sh
 candidates/CHG-R01B/apply-radioprincipal-aac-hls-v1.sh
 ```
 
+## CHG-TVKIDS-001 — pacote de reconstrução
+
+Fonte única no GitHub:
+
+```text
+scripts/tv/tvkids-rebuild-production-v1.sh
+scripts/tv/tvkids-rebuild-lib-v1.sh
+scripts/tv/tvkids-rebuild-media-v1.sh
+scripts/tv/tvkids-rebuild-cutover-v1.sh
+scripts/tv/tvkids-rebuild-public-v1.sh
+scripts/tv/tvkids-build-plan-v1.sh
+scripts/tv/tvkids-normalize-asset-v1.sh
+scripts/tv/tvkids-health-v1.sh
+scripts/tv/tvkids-nginx-patch-v1.py
+config/tv/tvkids/TV-C720P30-v1.yaml
+```
+
+O executor preserva a station `tvkids`, o root `/srv/tpsmedia/repository/channels/tvkids`, MediaMTX e NGINX como infraestrutura compartilhada. Reconstrói a cadeia TV específica com profile formal, certificação integral, normalização offline apenas quando necessária, plan/manifest dedicado, cutover apenas da unit TVKIDS, verificação de RTSP/HLS e correção dos aliases públicos sem criar segunda plataforma permanente.
+
 ## Próxima ação autorizada
 
-1. sincronizar `main` sem reset;
-2. `bash -n` nos dois candidates CHG-R01B;
-3. confirmar worktree limpa;
-4. executar `apply-radioprincipal-aac-hls-v1.sh` como root;
-5. somente se `CHG_R01B_RESULT=PASS`, iniciar observer de rotação destacado da sessão;
-6. fechar Principal apenas após `SEEN=18/18` e health POST.
+Executar exclusivamente:
 
-Não executar `daemon-reload`, não reiniciar MediaMTX/NGINX e não tocar outra station durante CHG-R01B.
+```text
+scripts/tv/tvkids-rebuild-production-v1.sh
+```
+
+O executor possui backup privado, gates antes da mutação, espera por mutações concorrentes detectadas, validação 15/15, rollback transacional e health final do produto. Somente após `CHG_TVKIDS_001_RESULT=PASS` e `TVKIDS_PRODUCT=HEALTHY` esta change pode ser documentada como concluída e `CHG-R01B` pode voltar a `READY`.
