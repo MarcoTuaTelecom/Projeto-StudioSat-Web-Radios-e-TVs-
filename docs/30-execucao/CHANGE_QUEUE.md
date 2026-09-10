@@ -21,23 +21,17 @@ Documentos normativos atuais:
 
 CHG-004B está **DONE / PASS / LOCKED** com snapshot `2026-09-10T16:57:41Z`.
 
-Provas finais:
-
 ```text
-archive SHA-256 no host e na cópia recebida:
+archive SHA-256 host/cópia:
 5d6e0cb9630329cc06444c4592e989cb7adfdf818a71182123724f74f316433a
-
 server sidecar: OK
 health tool raw SHA-256:
 d209a4d0c0d06ad3cdd1dd70bf2496574f85ebdfb6ffc739e3dad4c86f0d05ee
-
-snapshot Git HEAD:
-58b429a359c8f9b8e342319cd2380de74b0bc733
-
+snapshot Git HEAD: 58b429a359c8f9b8e342319cd2380de74b0bc733
 snapshot working tree: clean
 ```
 
-`registry/critical-artifacts-baseline.yaml` é agora o baseline estático `locked`.
+`registry/critical-artifacts-baseline.yaml` é o baseline estático `locked`.
 
 ## Trilha crítica
 
@@ -49,7 +43,7 @@ snapshot working tree: clean
 | CHG-003 | Core Contract v0.1 | Core + TV + Rádio | **DONE / ACCEPTED** | três domínios |
 | CHG-004X | FULL RAY-X v3.1 exaustivo | Rádio + Core | **DONE / PASS / ANALYZED** | fotografia profunda AS-IS |
 | CHG-004B | Baseline Oficial Operacional v1 | Core + Rádio | **DONE / PASS / LOCKED** | sidecar + tool hash + units/drop-ins capturados |
-| CHG-R01 | Rádio Principal — generator/playlist escaping | Rádio | **ACTIVE — VERIFY IMEDIATO** | restart foi emitido antes da promoção planejada; não executar segunda mutação até diagnosticar estado atual |
+| CHG-R01 | Rádio Principal — generator/playlist escaping | Rádio | **ACTIVE — APPLY v1.1 READY** | 18/18 candidate + backup + promoção atômica + restart só Principal + health + rotação 18/18 |
 | CHG-R02 | Radio Rock — recovery legado | Rádio + Core | **BLOCKED por CHG-R01** | generator PASS, start controlado, MediaMTX/RTSP/output PASS |
 | CHG-R03 | Rádio HLS — Country AAC pilot | Rádio + Core | **BLOCKED por R01/R02** | HLS real `#EXTM3U`, freshness, áudio, recursos aceitáveis |
 | CHG-R04 | Separação generator Rádio/TV | Rádio + TV + Core | **BLOCKED / DESIGN** | nenhum acoplamento de restart entre domínios |
@@ -57,50 +51,69 @@ snapshot working tree: clean
 | CHG-SEC-* | Samba/permissões/firewall/MediaMTX ACL/TLS | Core | **BLOCKED / INCIDENTES REGISTRADOS** | changes próprias sem misturar escopo |
 | CHG-TV-* | TVKIDS/TVTEENS/TVVIVA/TVMAISJOVEM | Engenharia TV | **TV-OWNED / INTERLOCKS ATIVOS** | seguir handoff; Rádio não altera |
 
-## Desvio operacional registrado em CHG-R01
+## CHG-R01 — estado comprovado após restart antecipado
 
-Depois da prova final do baseline, foi executado manualmente:
-
-```text
-systemctl restart tps-radioprincipal-playout.service
-```
-
-O systemd respondeu:
+Restart manual em `2026-09-10 17:31:47 UTC`:
 
 ```text
-Warning: The unit file, source configuration file or drop-ins of tps-radioprincipal-playout.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+pre PID Principal: 1135303
+post PID Principal: 1363987
+post state: active/running
+MediaMTX: ready=true
+RTSP: PASS
+NeedDaemonReload: yes
 ```
 
-O restart ocorreu **antes** de instalar/validar o generator candidate v2. Portanto:
+O generator e a playlist permaneceram com os hashes locked antigos. A playlist continua contendo a linha inválida de `Ain't No Mountain High Enough...`; portanto o restart não resolveu a causa.
 
-- **NÃO executar `daemon-reload`** neste momento;
-- **NÃO reiniciar a Principal novamente**;
-- **NÃO promover candidate ainda**;
-- primeiro capturar estado pós-restart, PID/start, `NeedDaemonReload`, ExecStart/ExecStartPre carregados, hashes atuais, journal, MediaMTX, RTSP, playlist e PIDs das demais stations/Core.
+As outras oito stations, MediaMTX e NGINX mantiveram os PIDs do baseline. O isolamento da station foi comprovado.
 
-Esse restart será incorporado ao `RESTART_REGISTER.md` depois que o timestamp/PID/resultados forem obtidos do host.
+**Não executar `systemctl daemon-reload`.** CHG-R01 não modifica unit/drop-ins; a configuração já carregada aponta para o generator e playout paths esperados.
 
-## Concorrência GitHub já observada
+## Concorrência GitHub
 
-Após o checkpoint Rádio, a Engenharia TV publicou o commit `d4152ca6f652c5eac3c8ccf49039511dea778d6c` com script TVKIDS P0 de lock/certificação. A contribuição foi revisada: é TV-owned e não altera generator/units/MediaMTX/NGINX da Rádio. Deve ser preservada no `main`.
+A contribuição TV mais recente observada é `d4152ca6f652c5eac3c8ccf49039511dea778d6c`, TVKIDS-owned. Foi revisada e deve ser preservada. Ela não altera o escopo Rádio da CHG-R01.
 
-O servidor local estava em `58b429...` no momento do restart, portanto está atrás do `main`. Não fazer reset; sincronizar por `git pull --ff-only` somente depois da fotografia imediata pós-restart.
+## Única próxima ação mutável autorizada
 
-## Próxima ação autorizada no host
-
-**Somente diagnóstico read-only da Rádio Principal e prova de não impacto.** Nenhum `daemon-reload`, nenhum segundo restart e nenhuma edição até analisar a saída.
-
-Depois do diagnóstico:
+Após sincronizar `main`, executar exclusivamente:
 
 ```text
-SYNC MAIN
-→ validar candidates CHG-R01
-→ gerar playlist candidate em /tmp
-→ provar 18/18
-→ backup
-→ promoção atômica do generator
-→ promoção da playlist
-→ restart controlado final
-→ health POST
-→ rotação 18/18
+candidates/CHG-R01/apply-radioprincipal-fix-v1.1.sh
 ```
+
+O executor:
+
+```text
+confere hashes locked
+→ gera candidate em /tmp
+→ valida 18/18 + full traversal
+→ cria backup privado
+→ promove generator v2 atomicamente
+→ gera playlist production atomicamente
+→ revalida 18/18
+→ restart SOMENTE Principal
+→ MediaMTX ready + RTSP
+→ 0 Impossible to open / 0 NO_READY_MEDIA
+→ prova nenhuma outra PID/playlist mudou
+→ gera evidence shareable
+```
+
+Se qualquer gate falhar antes da mutação, aborta sem tocar produção. Se falhar depois da mutação, executa rollback dos arquivos; se a falha ocorrer após restart, restaura e reinicia somente a Principal.
+
+`apply-radioprincipal-fix-v1.sh` está superseded; **usar somente v1.1**.
+
+Depois do `CHG_R01_IMMEDIATE_RESULT=PASS`, ainda falta o observer read-only:
+
+```text
+observe-radioprincipal-rotation-v1.sh
+```
+
+Gate final:
+
+```text
+ROTATION_RESULT=PASS
+SEEN=18/18
+```
+
+Somente então CHG-R01 fecha e CHG-R02 pode ser liberada.
