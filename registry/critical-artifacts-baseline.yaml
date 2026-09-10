@@ -1,16 +1,17 @@
 schema_version: STUDIOSAT-CRITICAL-ARTIFACTS-1
-status: verification-pending-server-sidecar
+status: locked
 observed_at_utc: 2026-09-10T16:57:41Z
 evidence:
   full_rayx: FULL-RAYX-v3.1
-  full_rayx_archive_sha256: 338c3f808aff8d70c5843daf88bfd7169fbb289704cabe937b60425511f26a6f
+  full_rayx_archive_sha256: 338c3f808affd70c5843daf88bfd7169fbb289704cabe937b60425511f26a6f
   health_baseline: CHG-004B-20260910T165741Z
   health_archive_sha256_received_copy: 5d6e0cb9630329cc06444c4592e989cb7adfdf818a71182123724f74f316433a
-  health_archive_server_sidecar_verified: false
+  health_archive_server_sidecar_verified: true
+  health_archive_server_sidecar_sha256: 5d6e0cb9630329cc06444c4592e989cb7adfdf818a71182123724f74f316433a
   health_git_head: 58b429a359c8f9b8e342319cd2380de74b0bc733
   health_worktree_clean: true
   health_tool_version: 1.0-candidate.1
-  health_tool_raw_sha256_from_host: pending
+  health_tool_raw_sha256_from_host: d209a4d0c0d06ad3cdd1dd70bf2496574f85ebdfb6ffc739e3dad4c86f0d05ee
 policy:
   static_artifact_hash_change_requires_change_id: true
   dynamic_playlist_hashes_are_tracked_but_may_change_only_in_authorized_change: true
