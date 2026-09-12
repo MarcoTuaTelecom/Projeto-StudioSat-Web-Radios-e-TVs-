@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Nome: restore-four-tvs-production-v2.sh
-# Versão: 2.0
+# Versão: 2.1
 # Owner: TV + Core
 # Safety class: production-change
 # Change ID: CHG-TV-RESTORE-001
 # Propósito: preservar as 5 rádios e restaurar TVKIDS/TVTEENS/TVVIVA/TVMAISJOVEM com gates e rollback.
+# v2.1: corrige expansão de variáveis locais sob set -u e limita rollback de TVKIDS/NGINX/webroot ao que foi efetivamente tocado.
 set -Eeuo pipefail
 IFS=$'\n\t'
 export LC_ALL=C
@@ -30,7 +31,7 @@ OUT="/tmp/CHG-TV-RESTORE-001-$TS"
 BACKUP="/var/backups/studiosat/CHG-TV-RESTORE-001/$TS"
 WORK="/srv/tpsmedia/repository/channels/tvkids/lab/chg-tv-restore-$TS"
 LOCK=/run/lock/studiosat-production-change.lock
-MUTATED=0; TVKIDS_SWAPPED=0; NGINX_RELOADED=0; NGINX_EXISTED=0; BUILDER_EXISTED=0; WEBROOT_EXISTED=0
+MUTATED=0; TVKIDS_SWAPPED=0; TVKIDS_TOUCHED=0; NGINX_TOUCHED=0; WEBROOT_TOUCHED=0; NGINX_EXISTED=0; BUILDER_EXISTED=0; WEBROOT_EXISTED=0
 
 die(){ echo "FATAL=$*" >&2; exit 1; }
 have(){ command -v "$1" >/dev/null 2>&1; }
@@ -59,7 +60,9 @@ avail_gb="$(df -Pk /srv/tpsmedia | awk 'NR==2{print int($4/1024/1024)}')"; (( av
 MTX_PID_PRE="$(systemctl show tps-mediamtx.service -p MainPID --value 2>/dev/null || true)"; [[ "$MTX_PID_PRE" =~ ^[1-9][0-9]*$ ]] || die MEDIAMTX_PID_INVALID
 : > "$OUT/radio.pre.tsv"
 radio_health(){
-  local st="$1" u="tps-${st}-playout.service" pid pl sha1 ready probe code tmp
+  local st="$1"
+  local u="tps-${st}-playout.service"
+  local pid pl sha1 ready probe code tmp
   [[ "$(systemctl is-active "$u" 2>/dev/null || true)" == active ]] || return 1
   pid="$(systemctl show "$u" -p MainPID --value)"; [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
   pl="/srv/tpsmedia/repository/channels/$st/playlists/playlist.txt"; [[ -f "$pl" ]] || return 1; sha1="$(sha "$pl")"
@@ -83,7 +86,20 @@ profile_ok(){
 }
 decode_ok(){ nice -n 19 ionice -c3 ffmpeg -hide_banner -nostdin -v error -xerror -threads 1 -i "$1" -map 0:v:0 -map 0:a:0 -f null - >/dev/null 2>"$2"; }
 build_list(){ local dir="$1" out="$2" repeats="${3:-1}"; printf 'ffconcat version 1.0\n' > "$out"; for _ in $(seq 1 "$repeats"); do while IFS= read -r -d '' f; do esc=${f//\'/\'\\\'\'}; printf "file '%s'\n" "$esc" >> "$out"; done < <(find "$dir" -maxdepth 1 -type f -iname '*.mp4' -print0 | sort -z); done; }
-temporal_ok(){ local list="$1" tag="$2" log="$OUT/$tag.stderr"; set +e; nice -n 19 ionice -c3 timeout 1200 ffmpeg -hide_banner -nostdin -loglevel warning -y -f concat -safe 0 -i "$list" -map 0:v:0 -map 0:a:0 -c copy -f flv /dev/null >/dev/null 2>"$log"; rc=$?; set -e; dts="$(grep -Eic 'non[- ]?monoton(ic|ous).*DTS|DTS.*out of order|non monotonically increasing dts' "$log" || true)"; other="$(grep -Eic 'Invalid data|No start code|corrupt|Conversion failed|Could not write|Broken pipe' "$log" || true)"; echo "$tag rc=$rc dts=$dts other=$other"; [[ $rc -eq 0 && $dts -eq 0 && $other -eq 0 ]]; }
+temporal_ok(){
+  local list="$1"
+  local tag="$2"
+  local log="$OUT/${tag}.stderr"
+  local rc dts other
+  set +e
+  nice -n 19 ionice -c3 timeout 1200 ffmpeg -hide_banner -nostdin -loglevel warning -y -f concat -safe 0 -i "$list" -map 0:v:0 -map 0:a:0 -c copy -f flv /dev/null >/dev/null 2>"$log"
+  rc=$?
+  set -e
+  dts="$(grep -Eic 'non[- ]?monoton(ic|ous).*DTS|DTS.*out of order|non monotonically increasing dts' "$log" || true)"
+  other="$(grep -Eic 'Invalid data|No start code|corrupt|Conversion failed|Could not write|Broken pipe' "$log" || true)"
+  echo "$tag rc=$rc dts=$dts other=$other"
+  [[ $rc -eq 0 && $dts -eq 0 && $other -eq 0 ]]
+}
 
 for st in "${FAILED_TVS[@]}"; do
   dir="/srv/tpsmedia/repository/channels/$st/canonical"; mapfile -d '' -t fs < <(find "$dir" -maxdepth 1 -type f -iname '*.mp4' -print0 | sort -z); ((${#fs[@]} > 0)) || die "NO_CANONICAL:$st"
@@ -125,16 +141,21 @@ for st in "${FAILED_TVS[@]}"; do d="/etc/systemd/system/tps-${st}-playout.servic
 rollback(){
   set +e; echo '=== ROLLBACK CHG-TV-RESTORE-001 ==='
   for st in "${FAILED_TVS[@]}"; do systemctl stop "tps-${st}-playout.service" >/dev/null 2>&1 || true; done
-  systemctl stop tps-tvkids-playout.service >/dev/null 2>&1 || true
+  if (( TVKIDS_TOUCHED == 1 )); then systemctl stop tps-tvkids-playout.service >/dev/null 2>&1 || true; fi
   for st in "${FAILED_TVS[@]}"; do d="/etc/systemd/system/tps-${st}-playout.service.d/20-canonical-plan.conf"; if [[ -f "$BACKUP/$st.20-canonical-plan.before" ]]; then cp -a "$BACKUP/$st.20-canonical-plan.before" "$d"; else rm -f "$d"; fi; done
   if (( BUILDER_EXISTED == 1 )); then cp -a "$BACKUP/tps-tv-canonical-plan.before" "$BUILDER"; else rm -f "$BUILDER"; fi
   systemctl daemon-reload >/dev/null 2>&1 || true
   if (( TVKIDS_SWAPPED == 1 )); then old="$(cat "$BACKUP/tvkids-canonical-old-path" 2>/dev/null || true)"; failed="$KBASE/archive/failed-$TS-canonical"; [[ -d "$KCAN" ]] && mv "$KCAN" "$failed"; [[ -n "$old" && -d "$old" ]] && mv "$old" "$KCAN"; fi
-  for st in "${TVS[@]}"; do [[ -f "$BACKUP/$st.playlist.before" ]] && cp -a "$BACKUP/$st.playlist.before" "/srv/tpsmedia/repository/channels/$st/playlists/playlist.txt"; done
-  if (( NGINX_EXISTED == 1 )); then cp -a "$BACKUP/studiosat-tv.conf.before" "$NGINX_DST"; else rm -f "$NGINX_DST"; fi
-  if (( WEBROOT_EXISTED == 1 )); then rm -rf "$WEBROOT"; tar -C /var/www -xzf "$BACKUP/studiosat-tv-player.before.tar.gz"; else rm -rf "$WEBROOT"; fi
-  nginx -t >/dev/null 2>&1 && systemctl reload nginx >/dev/null 2>&1 || true
-  systemctl start tps-tvkids-playout.service >/dev/null 2>&1 || true
+  for st in "${FAILED_TVS[@]}"; do [[ -f "$BACKUP/$st.playlist.before" ]] && cp -a "$BACKUP/$st.playlist.before" "/srv/tpsmedia/repository/channels/$st/playlists/playlist.txt"; done
+  if (( TVKIDS_TOUCHED == 1 )) && [[ -f "$BACKUP/tvkids.playlist.before" ]]; then cp -a "$BACKUP/tvkids.playlist.before" "$KPL"; fi
+  if (( NGINX_TOUCHED == 1 )); then
+    if (( NGINX_EXISTED == 1 )); then cp -a "$BACKUP/studiosat-tv.conf.before" "$NGINX_DST"; else rm -f "$NGINX_DST"; fi
+  fi
+  if (( WEBROOT_TOUCHED == 1 )); then
+    if (( WEBROOT_EXISTED == 1 )); then rm -rf "$WEBROOT"; tar -C /var/www -xzf "$BACKUP/studiosat-tv-player.before.tar.gz"; else rm -rf "$WEBROOT"; fi
+  fi
+  if (( NGINX_TOUCHED == 1 )); then nginx -t >/dev/null 2>&1 && systemctl reload nginx >/dev/null 2>&1 || true; fi
+  if (( TVKIDS_TOUCHED == 1 )); then systemctl start tps-tvkids-playout.service >/dev/null 2>&1 || true; fi
   echo ROLLBACK=DONE
 }
 trap 'rc=$?; if (( rc != 0 && MUTATED == 1 )); then rollback; fi; exit $rc' EXIT
@@ -158,6 +179,7 @@ for st in "${FAILED_TVS[@]}"; do
 done
 
 if (( USE_CAND == 1 )); then
+  TVKIDS_TOUCHED=1
   systemctl stop tps-tvkids-playout.service
   arch="$KBASE/archive/pre-dts-repair-$TS"; mkdir -p "$arch"; old="$arch/canonical.before"; echo "$old" > "$BACKUP/tvkids-canonical-old-path"; mv "$KCAN" "$old"; TVKIDS_SWAPPED=1; mv "$KNEW" "$KCAN"; chown -R tpsmedia:tpsmedia "$KCAN"; find "$KCAN" -type d -exec chmod 0755 {} +; find "$KCAN" -type f -exec chmod 0644 {} +
   /usr/local/sbin/tps-generate-playlist tvkids | tee "$OUT/tvkids-plan.txt"
@@ -167,10 +189,12 @@ else
   echo TVKIDS_CUTOVER=NOT_NEEDED_CURRENT_TIMELINE_ALREADY_ZERO_DTS
 fi
 
+WEBROOT_TOUCHED=1
 install -d -o www-data -g www-data -m 0755 "$WEBROOT"; install -o www-data -g www-data -m 0644 "$PLAYER_SRC" "$WEBROOT/index.html"
+NGINX_TOUCHED=1
 install -o root -g root -m 0644 "$NGINX_SRC" "$NGINX_DST"
 nginx -t | tee "$OUT/nginx-test.txt"
-systemctl reload nginx; NGINX_RELOADED=1; sleep 2
+systemctl reload nginx; sleep 2
 
 bash "$HEALTH" | tee "$OUT/health-v3.txt"; grep -q '^NS1_HEALTH_V3=PASS$' "$OUT/health-v3.txt" || die HEALTH_V3_FAIL
 
