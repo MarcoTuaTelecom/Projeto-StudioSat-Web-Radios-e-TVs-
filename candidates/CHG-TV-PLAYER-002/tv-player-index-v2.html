@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>Studio Sat TV — Ao Vivo</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<style>
+:root{color-scheme:dark;--glass:rgba(5,8,14,.72);--line:rgba(255,255,255,.16);--accent:#ff1744}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+body{overscroll-behavior:none}
+#stage{position:fixed;inset:0;background:#000;display:grid;place-items:center}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+#chrome{position:absolute;inset:0;pointer-events:none;opacity:1;transition:opacity .35s ease}
+#chrome.hidden{opacity:0}
+.top{position:absolute;left:0;right:0;top:0;padding:18px 24px 58px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.82),transparent)}
+.brand{font-weight:950;letter-spacing:.09em;font-size:clamp(18px,2.1vw,34px);text-shadow:0 2px 18px #000}.brand b{color:var(--accent)}
+.live{font-size:12px;font-weight:900;letter-spacing:.14em;padding:8px 12px;border-radius:999px;background:#d5002f;box-shadow:0 0 24px rgba(255,0,56,.45)}
+.bottom{position:absolute;left:18px;right:18px;bottom:18px;display:flex;align-items:end;justify-content:space-between;gap:16px}
+.card{max-width:740px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(12px);padding:14px 18px;border-radius:16px;box-shadow:0 10px 38px rgba(0,0,0,.35)}
+.station{font-size:clamp(20px,3vw,40px);font-weight:950}.status{margin-top:4px;font-size:13px;opacity:.8}.ok{color:#7ff0a6}.warn{color:#ffd36b}.err{color:#ff8fa3}
+#gate{position:absolute;inset:0;display:none;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(20,28,44,.72),rgba(0,0,0,.92));z-index:5;padding:24px;text-align:center}
+#gate.show{display:grid}
+.gatebox{max-width:560px;background:rgba(8,10,16,.86);border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.gatebox h1{margin:0 0 10px;font-size:clamp(26px,5vw,52px)}
+.gatebox p{opacity:.8;line-height:1.5}.btn{pointer-events:auto;border:0;border-radius:14px;padding:14px 22px;font-size:16px;font-weight:900;cursor:pointer;background:#fff;color:#000;margin-top:14px}
+#tap{position:absolute;inset:0;z-index:3;background:transparent;border:0;cursor:default}
+#debug{position:absolute;right:12px;bottom:12px;font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(0,0,0,.58);padding:8px 10px;border-radius:10px;display:none;white-space:pre;z-index:6}
+@media(max-width:680px){.top{padding:14px 14px 46px}.bottom{left:12px;right:12px;bottom:12px}.card{padding:11px 13px}}
+</style>
+</head>
+<body>
+<main id="stage">
+  <video id="video" autoplay muted playsinline preload="auto"></video>
+  <button id="tap" aria-label="Ativar áudio e tela cheia"></button>
+  <div id="chrome">
+    <div class="top"><div class="brand">STUDIO SAT <b>TV</b></div><div class="live">● AO VIVO</div></div>
+    <div class="bottom"><div class="card"><div id="station" class="station">Studio Sat TV</div><div id="status" class="status">Conectando ao sinal…</div></div></div>
+  </div>
+  <section id="gate"><div class="gatebox"><h1 id="gateTitle">Studio Sat TV</h1><p>O sinal já está carregado. Toque uma vez para ativar o áudio e abrir em tela cheia.</p><button id="enter" class="btn">▶ Assistir ao vivo</button></div></section>
+  <div id="debug"></div>
+</main>
+<script>
+(() => {
+'use strict';
+const v=document.getElementById('video'), statusEl=document.getElementById('status'), stationEl=document.getElementById('station'), gate=document.getElementById('gate'), gateTitle=document.getElementById('gateTitle'), enter=document.getElementById('enter'), tap=document.getElementById('tap'), chrome=document.getElementById('chrome'), debug=document.getElementById('debug');
+const host=location.hostname.toLowerCase();
+let id='tvkids',name='TVKIDS';
+if(host.includes('tvteens')){id='tvteens';name='TVTEENS'}else if(host.includes('tvviva')){id='tvviva';name='TVVIVA'}else if(host.includes('tvmaisjovem')){id='tvmaisjovem';name='TV MAIS JOVEM'}
+const stream='/'+id+'/index.m3u8';
+stationEl.textContent='STUDIO SAT — '+name; gateTitle.textContent='STUDIO SAT — '+name;
+let hls=null, rebuilds=0, hardReloads=0, lastTime=-1, lastProgress=Date.now(), lastManifest=0, chromeTimer=null, wakelock=null, userActivated=false;
+const setStatus=(t,c='')=>{statusEl.textContent=t;statusEl.className='status '+c};
+const dbg=()=>{if(!new URLSearchParams(location.search).has('debug')) return; debug.style.display='block'; debug.textContent=`station=${id}\nreadyState=${v.readyState} paused=${v.paused} muted=${v.muted}\ntime=${v.currentTime.toFixed(2)} network=${v.networkState}\nrebuilds=${rebuilds} lastManifest=${new Date(lastManifest||0).toISOString()}`};
+async function keepAwake(){try{if('wakeLock' in navigator){wakelock=await navigator.wakeLock.request('screen')}}catch(_){} }
+function destroyHls(){try{hls?.destroy()}catch(_){} hls=null}
+function seekLive(){try{if(hls&&Number.isFinite(hls.liveSyncPosition)){const p=hls.liveSyncPosition;if(Math.abs(v.currentTime-p)>10)v.currentTime=p}else if(v.seekable&&v.seekable.length){const end=v.seekable.end(v.seekable.length-1);if(Number.isFinite(end)&&Math.abs(v.currentTime-end)>10)v.currentTime=Math.max(0,end-1)}}catch(_){} }
+async function playBestEffort(){try{await v.play();setStatus(v.muted?'AO VIVO — áudio aguardando toque':'AO VIVO','ok')}catch(e){gate.classList.add('show');setStatus('Sinal pronto — toque para iniciar','warn')}}
+function buildHls(reason='initial'){
+  destroyHls(); setStatus(reason==='initial'?'Conectando ao sinal…':'Reconectando ao sinal…','warn');
+  if(window.Hls&&Hls.isSupported()){
+    hls=new Hls({enableWorker:true,lowLatencyMode:false,backBufferLength:30,maxBufferLength:30,maxMaxBufferLength:60,liveSyncDurationCount:3,liveMaxLatencyDurationCount:8,maxLiveSyncPlaybackRate:1.25,manifestLoadingMaxRetry:Infinity,levelLoadingMaxRetry:Infinity,fragLoadingMaxRetry:Infinity,manifestLoadingRetryDelay:1000,levelLoadingRetryDelay:1000,fragLoadingRetryDelay:1000,startPosition:-1});
+    hls.loadSource(stream); hls.attachMedia(v);
+    hls.on(Hls.Events.MANIFEST_PARSED,()=>{lastManifest=Date.now();seekLive();playBestEffort()});
+    hls.on(Hls.Events.LEVEL_UPDATED,()=>{lastManifest=Date.now()});
+    hls.on(Hls.Events.ERROR,(_,d)=>{
+      if(!d.fatal)return;
+      if(d.type===Hls.ErrorTypes.NETWORK_ERROR){setStatus('Rede instável — recuperando…','warn');try{hls.startLoad(-1)}catch(_){scheduleRebuild('network')}}
+      else if(d.type===Hls.ErrorTypes.MEDIA_ERROR){setStatus('Recuperando reprodução…','warn');try{hls.recoverMediaError()}catch(_){scheduleRebuild('media')}}
+      else scheduleRebuild('fatal');
+    });
+  }else if(v.canPlayType('application/vnd.apple.mpegurl')){
+    v.src=stream; v.addEventListener('loadedmetadata',()=>{lastManifest=Date.now();seekLive();playBestEffort()},{once:true});
+  }else{setStatus('Navegador sem suporte HLS','err');gate.classList.add('show')}
+}
+let rebuildTimer=null;
+function scheduleRebuild(reason){if(rebuildTimer)return; rebuildTimer=setTimeout(()=>{rebuildTimer=null;rebuilds++;if(rebuilds<=5){buildHls('rebuild:'+reason)}else{hardReload(reason)}},1200)}
+function hardReload(reason){hardReloads++;sessionStorage.setItem('studiosat_reload_reason',reason);sessionStorage.setItem('studiosat_reload_at',String(Date.now()));location.replace(location.pathname+'?recover='+Date.now())}
+function watchdog(){
+  const now=Date.now(); const t=v.currentTime;
+  if(!v.paused && v.readyState>=2 && t>lastTime+0.05){lastTime=t;lastProgress=now;rebuilds=0}
+  if(!document.hidden && now-lastProgress>15000){setStatus('Sinal parado — retomando automaticamente…','warn');lastProgress=now;seekLive();try{hls?.startLoad(-1)}catch(_){};scheduleRebuild('stall')}
+  if(lastManifest && now-lastManifest>30000){setStatus('Atualizando sinal ao vivo…','warn');scheduleRebuild('stale-manifest')}
+  dbg();
+}
+function hideChromeLater(){clearTimeout(chromeTimer);chrome.classList.remove('hidden');chromeTimer=setTimeout(()=>chrome.classList.add('hidden'),4500)}
+async function activateUser(){userActivated=true;gate.classList.remove('show');v.muted=false;try{await v.play()}catch(_){};try{await document.documentElement.requestFullscreen?.()}catch(_){};keepAwake();hideChromeLater()}
+enter.addEventListener('click',activateUser);tap.addEventListener('click',()=>{if(!userActivated)activateUser();else hideChromeLater()});
+v.addEventListener('playing',()=>{lastProgress=Date.now();setStatus(v.muted?'AO VIVO — toque para áudio':'AO VIVO','ok');if(v.muted&&!userActivated)gate.classList.add('show')});
+v.addEventListener('waiting',()=>setStatus('Bufferizando…','warn'));
+v.addEventListener('stalled',()=>{setStatus('Sinal interrompido — recuperando…','warn');scheduleRebuild('stalled-event')});
+v.addEventListener('error',()=>scheduleRebuild('video-error'));
+window.addEventListener('online',()=>{setStatus('Rede restabelecida — retomando…','ok');scheduleRebuild('online')});
+window.addEventListener('offline',()=>setStatus('Sem conexão — aguardando rede…','warn'));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){keepAwake();lastProgress=Date.now();seekLive();try{hls?.startLoad(-1)}catch(_){};playBestEffort()}});
+document.addEventListener('fullscreenchange',hideChromeLater);
+setInterval(watchdog,5000); keepAwake(); buildHls(); hideChromeLater();
+})();
+</script>
+</body>
+</html>
