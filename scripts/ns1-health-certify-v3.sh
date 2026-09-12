@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Nome: ns1-health-certify-v3.sh
-# Versão: 3.0
+# Versão: 3.1
 # Owner: Core
 # Safety class: read-only
 # Change ID: OBS-NS1-HEALTH-V3
 # Propósito: health sem falsos positivos de redirects, SPA fallback e vhost errado.
+# v3.1: corrige expansão de variáveis locais sob set -u.
 set -Eeuo pipefail
 IFS=$'\n\t'
 export LC_ALL=C
@@ -16,7 +17,13 @@ TVS=(tvkids tvteens tvviva tvmaisjovem)
 fail=0
 
 hls_local(){
-  local st="$1" prefix="$2" master1="$OUT/${prefix}.master1" child1="$OUT/${prefix}.child1" master2="$OUT/${prefix}.master2" child2="$OUT/${prefix}.child2" url="http://127.0.0.1:8888/$st/index.m3u8"
+  local st="$1"
+  local prefix="$2"
+  local master1="$OUT/${prefix}.master1"
+  local child1="$OUT/${prefix}.child1"
+  local master2="$OUT/${prefix}.master2"
+  local child2="$OUT/${prefix}.child2"
+  local url="http://127.0.0.1:8888/$st/index.m3u8"
   local code child url2 seq1 seq2
   code="$(curl -LsS --connect-timeout 3 --max-time 12 -o "$master1" -w '%{http_code}' "$url" || true)"
   [[ "$code" == 200 ]] && grep -q '^#EXTM3U' "$master1" || return 1
@@ -33,7 +40,10 @@ hls_local(){
 }
 
 probe_station(){
-  local st="$1" cls="$2" unit="tps-${st}-playout.service" p a pid ready ok
+  local st="$1"
+  local cls="$2"
+  local unit="tps-${st}-playout.service"
+  local p a pid ready ok
   a="$(systemctl is-active "$unit" 2>/dev/null || true)"; pid="$(systemctl show "$unit" -p MainPID --value 2>/dev/null || true)"
   ready="$(curl -fsS --connect-timeout 3 --max-time 5 http://127.0.0.1:9997/v3/paths/list 2>/dev/null | jq -r --arg s "$st" '.items[]?|select(.name==$s)|.ready' | head -1 || true)"
   p="$(timeout 15 ffprobe -v error -rtsp_transport tcp -show_entries stream=codec_type,codec_name,width,height,sample_rate,channels -of compact=p=0:nk=0 "rtsp://127.0.0.1:8554/$st" 2>/dev/null || true)"
