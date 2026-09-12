@@ -23,7 +23,7 @@ hls_local(){
   child="$(grep -v '^#' "$master1" | sed '/^[[:space:]]*$/d' | head -n1)"; [[ -n "$child" ]] || return 1
   url2="http://127.0.0.1:8888/$st/$child"; curl -LsS --connect-timeout 3 --max-time 12 "$url2" -o "$child1" || return 1
   seq1="$(grep '^#EXT-X-MEDIA-SEQUENCE:' "$child1" | tail -1 | cut -d: -f2 || true)"
-  sleep 4
+  sleep 8
   code="$(curl -LsS --connect-timeout 3 --max-time 12 -o "$master2" -w '%{http_code}' "$url" || true)"
   [[ "$code" == 200 ]] && grep -q '^#EXTM3U' "$master2" || return 1
   child="$(grep -v '^#' "$master2" | sed '/^[[:space:]]*$/d' | head -n1)"; [[ -n "$child" ]] || return 1
@@ -64,6 +64,14 @@ for st in "${RADIOS[@]}"; do
     [[ "$r" == 200 && "$h" == 200 && "$c" == M3U8 ]] || fail=1
   done
 done
+
+# Host base sem www é o player da Principal.
+host=radio.studiosatweb.com.br; st=radioprincipal
+r="$(curl -kLsS --connect-timeout 5 --max-time 15 -o "$OUT/${host}.root" -w '%{http_code}' "https://$host/" || true)"
+h="$(curl -kLsS --connect-timeout 5 --max-time 15 -o "$OUT/${host}.hls" -w '%{http_code}' "https://$host/$st/index.m3u8" || true)"; c=NOT_M3U8; [[ "$h" == 200 ]] && grep -q '^#EXTM3U' "$OUT/${host}.hls" && c=M3U8
+printf '%s\t%s\t%s\t%s\n' "$host" "$r" "$h" "$c" | tee -a "$OUT/public.tsv"
+[[ "$r" == 200 && "$h" == 200 && "$c" == M3U8 ]] || fail=1
+
 r="$(curl -kLsS --connect-timeout 5 --max-time 15 -o "$OUT/www.radio.root" -w '%{http_code}' https://www.radio.studiosatweb.com.br/ || true)"
 portal_ok=1
 for st in "${RADIOS[@]}"; do h="$(curl -kLsS --connect-timeout 5 --max-time 15 -o "$OUT/www.radio.$st.hls" -w '%{http_code}' "https://www.radio.studiosatweb.com.br/hls/$st/index.m3u8" || true)"; [[ "$h" == 200 ]] && grep -q '^#EXTM3U' "$OUT/www.radio.$st.hls" || portal_ok=0; done
