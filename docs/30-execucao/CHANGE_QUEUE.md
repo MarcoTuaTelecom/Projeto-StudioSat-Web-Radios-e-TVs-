@@ -6,73 +6,103 @@ Protocolo obrigatório: `docs/30-execucao/PROTOCOLO_EXECUCAO_SINCRONIZACAO_v0.1.
 
 Diretriz vigente: **IN-PLACE FIRST / NO CONTAINERS / NO VMs / NO DUPLICATE PLATFORM**.
 
-## Baseline oficial
+## Baseline factual vigente — 2026-09-12
 
-CHG-004B está **DONE / PASS / LOCKED** com snapshot `2026-09-10T16:57:41Z`.
+O pacote `OBS-NS1-RAYX-20260912` foi coletado e analisado. O baseline factual completo está em:
 
-## FREEZE OPERACIONAL — 2026-09-12
+```text
+docs/90-evidencias/BASELINE_NS1_DEEP_2026-09-12.md
+```
 
-Por determinação mais recente do owner, **nenhuma mutação de produção está autorizada até a conclusão e análise do novo raio-X completo e profundo do NS1**.
+O baseline antigo de 09/09–10/09 não deve ser usado isoladamente como verdade do host atual.
 
-A razão é operacional: as cinco emissoras de Rádio Studio Sat, seus sites/player/portal e demais componentes do host já sofreram mudanças posteriores aos baselines antigos. Antes de qualquer execução TVKIDS, Rádio, NGINX, MediaMTX, systemd, playlist, generator, canonical ou webroot, o estado real atual precisa ser conhecido e reconciliado.
+## FREEZE OPERACIONAL CONTINUA
 
-Estado obrigatório durante o freeze:
+**Nenhuma mutação de produção está autorizada.** As cinco rádios, seus sites/player/portal e a TVKIDS local têm estado atual que precisa ser preservado enquanto fechamos as últimas lacunas forenses.
 
-- CHG-TVKIDS-001: **FROZEN / PRESERVADA**;
-- CHG-R01/R02/R03/RWEB01: **FROZEN / PRESERVADAS**;
-- CHG-R04 e CHG-TV-002+: **PENDENTES**;
-- única ação operacional autorizada: **OBS-NS1-RAYX-20260912**, classe `read-only`.
+Estado durante o freeze:
 
-## OBS-NS1-RAYX-20260912 — ação autorizada
+- cinco Rádios Studio Sat: **ON-AIR / PRESERVAR COMO BASELINE IMUTÁVEL**;
+- sites/player/portal Rádio: **EM PRODUÇÃO / PRESERVAR**;
+- TVKIDS local: **ON-AIR, porém DTS de áudio recorrente**;
+- TVKIDS público: **BROKEN — vhosts TV ausentes; roots caem no player Rádio; HLS público 404**;
+- TVTEENS/TVVIVA/TVMAISJOVEM: **FAILED — `NO_READY_MEDIA` após restart coordenado de 06:58**;
+- MediaMTX: **COMPARTILHADO / cinco Rádios + TVKIDS ready**;
+- antigo `CHG-TVKIDS-001` executor: **STALE / REDESIGN REQUIRED** contra o NGINX atual.
+
+## Fatos críticos confirmados pelo raio-X
+
+### Rádio
+
+As cinco rádios estão active/running, AAC 48 kHz stereo, MediaMTX ready, RTSP PASS e HLS local PASS/CHANGING segundo o Core Preflight v1.1. Playlists on-air e em disco têm SHA idêntico e não há FD `(deleted)`.
+
+O runtime real das cinco rádios é definido por drop-ins systemd `30-force-aac.conf`, que sobrescrevem o wrapper `/usr/local/sbin/tps-playout-radio`. Isto é invariável para futuras changes TV.
+
+### TVKIDS
+
+TVKIDS local está active, MediaMTX ready, H.264/AAC e HLS local fresh. Sua playlist é 15/15 canonical e on-air = disco.
+
+O `Non-monotonic DTS` foi localizado no áudio (`stream 0:1`) e se repete em 10 boundaries específicos da playlist, com pequenos recuos de ~3–21 ms por volta. A próxima correção temporal deverá ser provada offline antes de qualquer cutover.
+
+### TV pública
+
+O NGINX atual não possui `server_name` de TV. Todos os roots TV observados estão caindo no vhost Radio Studio Sat e os HLS públicos TV retornam 404. A futura restauração TV deverá criar vhosts TV dedicados e disjuntos, preservando byte-a-byte as configurações Rádio atuais.
+
+### Outras TVs
+
+TVTEENS, TVVIVA e TVMAISJOVEM falham porque o generator usa `ready/`, cada station possui somente mídia `teste-*` em ready, e o generator exclui `test/teste` antes do ExecStart. Foram 5 tentativas de restart até start-limit.
+
+### Evento 06:58
+
+Há evidência de stop/start coordenado de NGINX + todas as nove stations em ~06:58 UTC. O host não rebootou. O pacote mostra `apt-daily-upgrade.timer` às 06:56:35, mas não contém apt/unattended/dpkg logs suficientes para provar ou excluir causalidade. O iniciador do restart global permanece **UNPROVEN**.
+
+## Única ação operacional autorizada agora
+
+**OBS-NS1-FORENSIC-20260912 — read-only**
 
 Executor:
 
 ```text
-scripts/ns1-full-deep-rayx-v2.sh --deep
+scripts/ns1-forensic-supplement-20260912.sh
 ```
 
-Esse raio-X usa o `studiosat-core-preflight.sh` já existente e acrescenta coleta profunda do estado atual, sem alterar a produção. O pacote final deve cobrir:
+Objetivos:
 
-1. host/CPU/RAM/disco/load/processos;
-2. nove units e seus PIDs/comandos/journals/restarts/recursos;
-3. playlists efetivamente abertas por `/proc/<pid>/fd`, playlists no disco, SHA e FDs `(deleted)`;
-4. MediaMTX API/paths, RTSP e HLS local das nove stations;
-5. duas amostras HLS para provar freshness, não apenas HTTP 200;
-6. NGINX completo, vhosts, webroots, identidades/hashes e `nginx -t`;
-7. DNS/TLS/root/HLS dos hostnames públicos Rádio e TV;
-8. inventário de `ready/canonical/incoming/quarantine/playlists/state/graphics/logs/lab/archive`;
-9. SHA256 + `ffprobe` de todos os assets em `ready/` e `canonical/` no modo deep;
-10. decode integral das playlists ativas, sequencial, `nice 19`, `ionice idle`, uma station por vez;
-11. timers/cron/firewall/sockets e indícios de automação oculta;
-12. fault signatures das últimas 24h;
-13. Git local vs `origin/main`;
-14. comparação dos PIDs antes/depois para registrar qualquer alteração espontânea durante a coleta;
-15. pacote shareable redigido e snapshots privados locais separados.
+1. fechar a origem do restart coordenado de 06:58 com journal + apt/unattended-upgrades/dpkg/auth/sudo;
+2. registrar mtimes de systemd/NGINX/scripts próximos ao incidente;
+3. provar o HLS real do portal `www.radio...` na rota correta `/hls/<station>/index.m3u8`;
+4. repetir HLS local seguindo redirect para corrigir o falso negativo 302 do coletor custom;
+5. congelar hashes dos três webroots Rádio como invariantes para a futura change TV.
 
-O modo deep é automaticamente suprimido se o coletor detectar uma mutação concorrente ou job systemd em andamento; a parte estática ainda é coletada e o fato fica registrado.
-
-Resultado esperado da coleta:
+Resultado esperado:
 
 ```text
-NS1_RAYX_RESULT=COLLECTED
+NS1_FORENSIC_RESULT=COLLECTED
 production_mutations_by_script=0
 ```
 
-A coleta **não autoriza** automaticamente nenhuma change posterior. O pacote deve ser analisado primeiro, confrontando o estado atual das cinco rádios, sites/portal, quatro TVs, MediaMTX, NGINX e filesystem.
+A suplementação continua sendo coleta, não autorização para produção-change.
 
-## Trilha crítica preservada
+## Trilha crítica
 
-| ID | Mudança | Dono | Estado durante o freeze |
-|---|---|---|---|
-| OBS-NS1-RAYX-20260912 | Raio-X completo e profundo NS1 | Core | **ACTIVE / READ-ONLY** |
-| CHG-TVKIDS-001 | Reconstrução integral TVKIDS | TV | **FROZEN / PRESERVADA** |
-| CHG-R01 | Principal — escaping/playlist atômica | Rádio | **FROZEN / preservar estado atual** |
-| CHG-R02 | Rock — recovery legado | Rádio + Core | **FROZEN / preservar estado atual** |
-| CHG-R03 | Cinco rádios — AAC/HLS | Rádio + Core | **FROZEN / estado real será revalidado** |
-| CHG-RWEB01 | Player/portal/NGINX Rádio | Rádio + Core | **FROZEN / estado real será revalidado** |
-| CHG-R04 | Separação generator Rádio/TV | Rádio + TV + Core | **PENDENTE** |
-| CHG-TV-002+ | TVTEENS/TVVIVA/TVMAISJOVEM | TV | **PENDENTE** |
+| ID | Mudança | Estado |
+|---|---|---|
+| OBS-NS1-RAYX-20260912 | Raio-X profundo principal | **DONE / ANALISADO** |
+| OBS-NS1-FORENSIC-20260912 | Suplemento incidente + portal HLS | **ACTIVE / READ-ONLY** |
+| CHG-TVKIDS-001 antigo | Executor de reconstrução anterior | **FROZEN / STALE / REDESIGN REQUIRED** |
+| CHG-TVKIDS-002 | Nova recuperação baseada no baseline 12/09 | **DESIGN ONLY / ainda não autorizada** |
+| CHG-R01/R02/R03/RWEB01 | Rádio | **FROZEN / produção atual preservada** |
+| CHG-TV-003+ | TVTEENS/TVVIVA/TVMAISJOVEM | **PENDENTE** |
 
-## Regra para sair do freeze
+## Gate para uma futura mutação TVKIDS
 
-Somente após análise do pacote OBS-NS1-RAYX-20260912 será produzido um novo baseline factual. A próxima change deverá partir desse baseline, declarar exatamente o que já funciona, o que está degradado, dependências compartilhadas, risco cruzado, candidate, precheck, rollback e health público. Nenhum baseline de 09/09 ou 10/09 será usado como verdade atual sem reconfirmação.
+A futura change somente poderá ser promovida depois de:
+
+- suplementação forense analisada;
+- candidate temporal TVKIDS provar zero DTS offline;
+- NGINX candidate TV usar arquivo/blocos dedicados e não alterar `studiosat-radio.conf` nem `zz-studiosat-radio-portal.conf`;
+- hashes/PIDs/health das cinco rádios registrados como invariantes PRE/POST;
+- `nginx -t` em candidate antes de qualquer reload;
+- nenhum restart de MediaMTX;
+- rollback TVKIDS explícito e independente das rádios;
+- health final validar produto público correto, não apenas HTTP 200.
