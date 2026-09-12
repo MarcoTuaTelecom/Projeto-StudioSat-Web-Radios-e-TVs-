@@ -12,99 +12,55 @@ CHG-004B está **DONE / PASS / LOCKED** com snapshot `2026-09-10T16:57:41Z`.
 
 ## Prioridade operacional vigente
 
-Por determinação mais recente do owner em `2026-09-10`, a prioridade mutável imediata passa a ser **colocar as cinco emissoras de Rádio Studio Sat no ar publicamente, com áudio funcional e player/portal corretos**. A trilha TVKIDS permanece preservada no GitHub e volta à prioridade assim que a recuperação pública das rádios fechar ou for revertida.
+Por determinação mais recente do owner em `2026-09-12`, a prioridade mutável imediata volta a ser **CHG-TVKIDS-001 — reconstrução integral da TVKIDS até produto HEALTHY em produção**.
 
-A recuperação Rádio deve continuar **uma estação por vez** internamente. A alteração compartilhada de NGINX só ocorre depois de as cinco saídas HLS locais passarem e deve preservar os hostnames e serviços de TV.
+As changes de Rádio ficam **PAUSED / PRESERVADAS**, sem descarte do trabalho já realizado. Nenhuma mutação Rádio deve ocorrer em paralelo com CHG-TVKIDS-001. O executor TVKIDS possui lock global, espera por mutações em andamento e valida que nenhum PID de outra emissora ou do MediaMTX mudou durante o cutover.
 
 ## Trilha crítica atual
 
 | ID | Mudança | Dono | Estado | Gate |
 |---|---|---|---|---|
-| CHG-R01 | Principal — escaping/playlist atômica | Rádio | **APPLY PASS / ROTATION FINAL PENDING** | generator e playlist corrigidos; MediaMTX/RTSP PASS; 0 Impossible/NO_READY pós-fix |
-| CHG-R02 | Rock — recovery legado | Rádio + Core | **RECOVERY EXECUTADA / validar na matriz final** | playlist de 10 itens e publicação observada em evidência posterior |
-| CHG-R03 | Cinco rádios — AAC-LC 48 kHz estéreo + HLS real | Rádio + Core | **READY / PRIORIDADE ATIVA** | `apply-all-radios-aac-hls-v1.sh`; restart uma rádio por vez; RTSP AAC + HLS local/público por estação |
-| CHG-RWEB01 | Radio Web — player sem www + portal com www + NGINX isolado | Rádio + Core | **READY APÓS CHG-R03 PASS** | webroots isolados já implantados; remover apenas hostnames Rádio dos blocos compartilhados; preservar TVs; nginx -t + reload + matriz pública |
-| CHG-TVKIDS-001 | Reconstrução integral da cadeia TVKIDS | TV | **PAUSED / PRESERVADA PELO OVERRIDE DO OWNER** | pacote permanece intacto no GitHub; retomar após Rádio |
+| CHG-TVKIDS-001 | Reconstrução integral da cadeia TVKIDS | TV | **ACTIVE / PRIORIDADE ATIVA** | certificar canonical 15/15 → zero DTS → manifest/plan dedicado → cutover somente TVKIDS → MediaMTX/RTSP/HLS → quatro FQDNs → health final/rollback |
+| CHG-R01 | Principal — escaping/playlist atômica | Rádio | **APPLY PASS / PAUSED PARA TVKIDS** | preservar estado atual |
+| CHG-R02 | Rock — recovery legado | Rádio + Core | **RECOVERY EXECUTADA / PAUSED PARA TVKIDS** | validar na matriz Rádio quando retomada |
+| CHG-R03 | Cinco rádios — AAC-LC 48 kHz estéreo + HLS real | Rádio + Core | **READY / PAUSED PARA TVKIDS** | retomar após CHG-TVKIDS-001 fechar ou reverter |
+| CHG-RWEB01 | Radio Web — player sem www + portal com www + NGINX isolado | Rádio + Core | **READY / PAUSED PARA TVKIDS** | retomar após CHG-R03 |
 | CHG-R04 | Separação generator Rádio/TV | Rádio + TV + Core | **PENDENTE** | preservar isolamento por domínio |
-| CHG-TV-002+ | TVTEENS/TVVIVA/TVMAISJOVEM | Engenharia TV | **PENDENTE** | retomar pela trilha TV após TVKIDS |
+| CHG-TV-002+ | TVTEENS/TVVIVA/TVMAISJOVEM | Engenharia TV | **PENDENTE** | replicar somente após TVKIDS comprovadamente saudável |
 
-## Diagnóstico que determina CHG-R03
+## CHG-TVKIDS-001 — execução autorizada agora
 
-As cinco paths chegaram a ser observadas `ready=true` / `online=true` no MediaMTX, mas o HLS direto em `127.0.0.1:8888/<radio>/index.m3u8` termina em HTTP 500 com:
-
-```text
-{"status":"error","error":"muxer is waiting to be created"}
-```
-
-A publicação Rádio legado usa MPEG-1/2 Audio (MP3). Para a saída HLS atual do MediaMTX, o profile Rádio passa a AAC-LC 48 kHz estéreo. A mudança não reinicia MediaMTX nem NGINX e reinicia somente uma rádio de cada vez, com rollback do playout comum caso um gate falhe.
-
-Candidates:
+Executor único:
 
 ```text
-candidates/CHG-R03/tps-playout-radio-v3-aac-all.sh
-candidates/CHG-R03/apply-all-radios-aac-hls-v1.sh
+scripts/tv/tvkids-rebuild-production-v1.sh
 ```
 
-## CHG-RWEB01 — identidade pública
+O executor, em uma única change transacional:
 
-Sem `www`:
+1. exige `HEAD == origin/main` e verifica SHA de todos os arquivos do pacote;
+2. obtém lock global de mudança e espera mutações concorrentes encerrarem;
+3. preserva backup privado do generator, unit, NGINX, playlists, manifests e estado atual;
+4. prova que a playlist efetivamente aberta pelo FFmpeg é 100% `canonical/` e corresponde ao conjunto canonical conhecido;
+5. certifica todos os assets: perfil H.264 1280x720p30 yuv420p + AAC 48 kHz stereo e decode integral;
+6. testa a timeline completa em dois ciclos e loop; se necessário, reconstrói **todos** os assets offline com timestamps determinísticos e exige 100% de sucesso — nenhum asset é silenciosamente descartado;
+7. publica `ready.manifest.tsv`, `current.ffconcat`, `previous.ffconcat` e mantém `playlist.txt` como compatibilidade de transição;
+8. instala builder e health dedicados TVKIDS e converte o dispatch do generator compartilhado para o builder TV dedicado;
+9. faz cutover somente de `tps-tvkids-playout.service`;
+10. exige MediaMTX `tvkids ready=true`, RTSP H.264/AAC correto e HLS local HTTP 200 com `#EXTM3U`;
+11. corrige os aliases públicos TVKIDS no NGINX somente quando necessário, com `nginx -t` antes do reload;
+12. exige root e HLS HTTP 200 nos quatro FQDNs públicos;
+13. exige zero `Non-monotonic DTS` e zero erro fatal no journal do novo processo;
+14. compara PIDs antes/depois e exige que nenhuma outra emissora nem MediaMTX tenha reiniciado;
+15. em qualquer falha pós-mutação, executa rollback da TVKIDS e dos artefatos alterados.
+
+Resultado de fechamento obrigatório:
 
 ```text
-radio.studiosatweb.com.br
-radioprincipal.studiosatweb.com.br
-radiopop.studiosatweb.com.br
-radiorock.studiosatweb.com.br
-radioclassicas.studiosatweb.com.br
-radiocountry.studiosatweb.com.br
+CHG_TVKIDS_001_RESULT=PASS
+TVKIDS_PRODUCT=HEALTHY
 ```
 
-Servem o **player de tela cheia**, com Play/Pause, volume, mute/alto-falante, fullscreen e seleção de emissora.
+## Rádio — estado preservado para retomada
 
-Com `www`:
-
-```text
-www.radio.studiosatweb.com.br
-www.radioprincipal.studiosatweb.com.br
-www.radiopop.studiosatweb.com.br
-www.radiorock.studiosatweb.com.br
-www.radioclassicas.studiosatweb.com.br
-www.radiocountry.studiosatweb.com.br
-```
-
-Servem o **portal editorial Radio Studio Sat**, em fundo cinza-claro, com player fixo inferior e navegação entre as cinco emissoras.
-
-Webroots isolados já criados no host:
-
-```text
-/var/www/studiosat-radio-player
-/var/www/studiosat-radio-portal
-```
-
-O NGINX legado ainda mistura Rádio e TV em `/etc/nginx/conf.d/tps-9-emissoras.conf`; CHG-RWEB01 remove somente os FQDNs Rádio dessas quatro linhas `server_name`, mantém os FQDNs TV no bloco legado e instala um bloco Rádio dedicado.
-
-Candidates:
-
-```text
-candidates/CHG-RWEB01/player/index.html
-candidates/CHG-RWEB01/portal/index.html
-candidates/CHG-RWEB01/nginx-radio-isolated-v1.conf
-candidates/CHG-RWEB01/deploy-radio-web-isolated-v2.sh
-candidates/CHG-RWEB01/apply-radio-public-web-v3.sh
-```
-
-## Execução autorizada agora
-
-A forma preferencial é o executor único:
-
-```text
-candidates/CHG-RADIO-NOW/restore-five-radios-and-web-v1.sh
-```
-
-Ele executa, nesta ordem:
-
-1. CHG-R03: cinco rádios para AAC/HLS, uma por vez, com validação por estação;
-2. refresh dos webroots Rádio isolados;
-3. CHG-RWEB01: split NGINX Rádio/TV, `nginx -t`, reload e validação pública;
-4. matriz final exigindo as cinco rádios `active`, MediaMTX `ready=true`, HLS HTTP 200 + `#EXTM3U`, todos os roots sem/com `www` em HTTP 200.
-
-Se qualquer fase falhar, a execução deve parar no `FATAL=` correspondente; não iniciar outra mutação manual em paralelo.
+CHG-R03 permanece preparado para converter as cinco rádios para AAC-LC 48 kHz estéreo/HLS, e CHG-RWEB01 permanece preparado para separar os webroots/NGINX de Rádio sem remover os hostnames TV. Esses candidates não são descartados; apenas deixam de ser a change mutável ativa enquanto TVKIDS é reconstruída.
