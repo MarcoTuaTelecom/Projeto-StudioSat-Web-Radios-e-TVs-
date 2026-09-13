@@ -8,142 +8,146 @@ Diretriz vigente: **IN-PLACE FIRST / NO CONTAINERS / NO VMs / NO DUPLICATE PLATF
 
 ## Baseline factual vigente — 2026-09-12
 
-O pacote `OBS-NS1-RAYX-20260912` foi coletado e analisado. O baseline factual completo está em:
+Fonte factual:
 
 ```text
 docs/90-evidencias/BASELINE_NS1_DEEP_2026-09-12.md
 ```
 
-O baseline antigo de 09/09–10/09 não deve ser usado isoladamente como verdade do host atual.
-
-## Estado factual congelado antes da mudança
+Estado confirmado antes da convergência canônica:
 
 - cinco Rádios Studio Sat: **ON-AIR / baseline imutável**;
 - sites/player/portal Rádio: **EM PRODUÇÃO / baseline imutável**;
-- TVKIDS local: **ON-AIR**, 15/15 canonical, porém com `Non-monotonic DTS` de áudio em boundaries recorrentes;
-- TVKIDS público: **BROKEN**, pois não há vhost TV dedicado e os hosts caem no player Rádio;
-- TVTEENS/TVVIVA/TVMAISJOVEM: **FAILED**, com canonical válido disponível e falha de `ExecStartPre` porque o generator legado exclui `test/teste` em `ready/`;
 - MediaMTX: compartilhado e saudável para as cinco rádios + TVKIDS;
-- antigo `CHG-TVKIDS-001`: **STALE / NÃO USAR** contra o NGINX atual.
+- TVKIDS: runtime local ativo, 15/15 canonical, com `Non-monotonic DTS` de áudio recorrente na estratégia antiga de concat + stream-copy integral;
+- TVTEENS/TVVIVA/TVMAISJOVEM: canonical técnico disponível, porém units falharam no generator legado e TVTEENS provou DTS em teste 3x com stream-copy integral;
+- NGINX TV acumulou owners legados de changes anteriores e não pode continuar sendo corrigido por novos patches de `server_name`.
 
-## Falsos positivos eliminados
+## Decisão arquitetural — 2026-09-12
 
-O novo health read-only é:
+**ENCERRAR A CADEIA DE REMENDOS TV.**
 
-```text
-scripts/ns1-health-certify-v3.sh
-```
-
-Ele substitui os testes ambíguos do coletor v2 para decisão operacional:
-
-1. segue redirects HLS locais antes de validar M3U8;
-2. prova freshness usando `#EXT-X-MEDIA-SEQUENCE` do media playlist, e não apenas HTTP 200/master estático;
-3. valida o portal `www.radio.studiosatweb.com.br` pela rota real `/hls/<station>/index.m3u8`;
-4. para TVs, HTTP 200 sozinho não vale: exige o header `X-StudioSat-TV: tv-player-v1` e M3U8 real;
-5. não usa o `r_frame_rate` isolado do RTSP como verdade do FPS de produto TV.
-
-## CHG-TV-RESTORE-001 — AUTORIZADA
-
-Objetivo: colocar as quatro TVs no ar e corrigir o produto público TV **sem alterar o baseline Rádio**.
-
-Executor único:
+Documento normativo novo:
 
 ```text
-scripts/tv/restore-four-tvs-production-v2.sh
+docs/20-tv/ARQUITETURA_TV_PUBLICA_CANONICA_v1.0.md
 ```
+
+A arquitetura canônica separa dois planos:
+
+1. **CHG-TV-CANON-001 — WEB/NGINX**: um único owner NGINX para todos os hostnames TV + um único player fullscreen/resiliente.
+2. **CHG-TV-CANON-002 — RUNTIME**: um único playout policy para as quatro TVs, playlist `canonical/` e áudio com timeline gerada por sample-count para eliminar sobreposição AAC nos boundaries, mantendo vídeo em stream-copy.
+
+Os scripts `CHG-TVWEB01`, `CHG-TVWEB02`, `CHG-TVKIDS-WEB-003`, `CHG-TV-PLAYER-002`, `CHG-TV-RESTORE-001` e patchers TV anteriores passam a **LEGADO / SUPERSEDED / NÃO EXECUTAR**. Eles ficam no repositório apenas como histórico/evidência até limpeza posterior.
+
+## Base técnica pesquisada
+
+- NGINX seleciona virtual server por `listen` + `server_name`; quando não há match, cai no default/primeiro server. Logo, hosts TV sem owner explícito podem cair em Rádio. A solução é ownership explícito e único, não novos blocos duplicados.
+- MediaMTX expõe HLS diretamente em `/<path>/index.m3u8`; o proxy público preservará exatamente os paths `tvkids`, `tvteens`, `tvviva`, `tvmaisjovem`.
+- Chrome permite autoplay mudo; autoplay com som depende de interação/engagement/policy. Portanto o player tenta autoplay muted e usa o primeiro gesto para áudio + Fullscreen API.
+- hls.js possui recovery oficial: `startLoad()` para network error e `recoverMediaError()` para media error. Reload de página inteira é último recurso, não heartbeat.
+- FFmpeg documenta que concat demuxer é apropriado para evitar re-encode quando timestamps são compatíveis e recomenda concat filter quando é necessário re-encode. O playout canônico evita depender do timestamp AAC de cada MP4: decodifica somente áudio e aplica `aresample` + `asetpts=N/SR/TB`, gerando timeline monotônica por contagem de samples; vídeo continua bit-exact.
+
+## CHG-TV-CANON-001 — WEB/NGINX
+
+Candidate:
+
+```text
+candidates/CHG-TV-CANON-001/studiosat-tv.conf
+candidates/CHG-TV-CANON-001/index.html
+```
+
+Executor autorizado:
+
+```text
+scripts/tv/studiosat-tv-canonical-web-migrate-v1.1.sh
+```
+
+Comportamento obrigatório:
+
+- lê o `nginx -T` real;
+- descobre owners TV ativos por conteúdo carregado, não por nome esperado de arquivo;
+- qualquer owner que misture TV com Rádio ou hostname externo aborta **antes da mutação**;
+- todo owner exclusivamente TV é arquivado e retirado do include ativo inteiro — sem patch em linha;
+- instala somente `/etc/nginx/conf.d/studiosat-tv.conf` como owner TV;
+- instala o player único em `/var/www/studiosat-tv/current/index.html`;
+- exige `nginx -t` antes do reload;
+- prova que cada hostname TV pertence a exatamente um arquivo carregado, o owner canônico;
+- valida roots por SNI local (`--resolve ... 127.0.0.1`) para eliminar DNS/cache como falso positivo;
+- para station `ready=true`, exige M3U8 real pelo vhost público;
+- não reinicia FFmpeg nem MediaMTX;
+- PIDs/playlists/configs/webroots Rádio são invariantes PRE/POST.
+
+Resultado obrigatório:
+
+```text
+CHG_TV_CANON_001_WEB=PASS
+SINGLE_TV_NGINX_OWNER=PASS
+TV_FULLSCREEN_PLAYER_V3=PASS
+ALL_5_RADIOS_PRESERVED=PASS
+MEDIAMTX_PRESERVED=PASS
+```
+
+## CHG-TV-CANON-002 — RUNTIME
 
 Candidates:
 
 ```text
-candidates/CHG-TV-RESTORE-001/tps-tv-canonical-plan-v1.sh
-candidates/CHG-TV-RESTORE-001/studiosat-tv-v1.conf
-candidates/CHG-TV-RESTORE-001/tv-player-index-v1.html
+candidates/CHG-TV-CANON-001/tps-tv-plan-v1.sh
+candidates/CHG-TV-CANON-001/tps-tv-playout-v1.sh
 ```
 
-### Gates obrigatórios antes de qualquer mutação
-
-O executor aborta antes da primeira alteração se qualquer condição falhar:
-
-- `HEAD != origin/main` ou worktree rastreada suja;
-- outra change/processo mutável ou job systemd em andamento;
-- MediaMTX sem PID válido;
-- qualquer uma das cinco rádios não estiver active, AAC 48 kHz stereo, `ready=true` e HLS real;
-- qualquer HLS do portal Rádio real em `/hls/` falhar;
-- webroots/configurações Rádio ausentes;
-- canonical de TVTEENS/TVVIVA/TVMAISJOVEM não passar perfil, decode integral e loop temporal 3x;
-- canonical TVKIDS não passar perfil/decode;
-- falta de RAM/disco mínimos.
-
-### Correção TVKIDS
-
-A timeline atual é testada offline em dois ciclos completos. Se houver DTS:
-
-1. tenta reconstrução apenas do áudio AAC, preservando vídeo bit-a-bit;
-2. exige profile/decode e **zero DTS em dois ciclos completos**;
-3. se a correção de áudio for insuficiente, usa normalização integral deterministicamente;
-4. nenhum candidate toca produção antes de passar o gate temporal.
-
-O canonical atual só é trocado depois do candidate passar. O original é movido para archive e fica disponível para rollback.
-
-### TVTEENS / TVVIVA / TVMAISJOVEM
-
-As três passam a usar um builder TV dedicado que lê `canonical/` e não aplica a exclusão nominal `test/teste` do generator legado. Cada station é iniciada individualmente e validada por systemd + MediaMTX + RTSP + HLS antes da próxima.
-
-### NGINX / produto público TV
-
-A mudança cria somente:
+Executor autorizado **somente depois de CHG-TV-CANON-001 PASS**:
 
 ```text
-/etc/nginx/conf.d/studiosat-tv.conf
-/var/www/studiosat-tv-player/index.html
+scripts/tv/studiosat-tv-canonical-runtime-migrate-v1.sh
 ```
 
-Os arquivos Rádio abaixo são invariantes e não são editados:
+Política de runtime:
 
 ```text
-/etc/nginx/conf.d/studiosat-radio.conf
-/etc/nginx/conf.d/zz-studiosat-radio-portal.conf
-/var/www/studiosat-radio-player
-/var/www/studiosat-radio-portal
-/var/www/studiosat-radio/current
+canonical/*.mp4
+  -> ffconcat atômico
+  -> vídeo: H.264 stream-copy
+  -> áudio: decode -> 48 kHz -> asetpts=N/SR/TB -> AAC 192k stereo
+  -> FLV/RTMP local
+  -> MediaMTX
 ```
 
-O NGINX candidate só é recarregado depois de `nginx -t` passar.
+Antes da mutação, cada station precisa passar:
 
-### Gate de preservação Rádio
+- canonical não vazio;
+- H.264 1280x720 yuv420p 30 fps;
+- AAC 48 kHz stereo;
+- decode integral de todo asset;
+- teste 3x com **a exata política canônica de playout**;
+- `rc=0`, `dts=0`, `fatal=0`.
 
-No final da change o executor exige:
+Depois disso, as quatro units têm os drop-ins antigos TV arquivados e substituídos por **um único drop-in canônico por station**. Não se altera unit Rádio nem se reinicia MediaMTX. As TVs convergem uma por vez, com systemd + MediaMTX + RTSP + HLS e journal `dts=0` antes de PASS.
 
-- mesmo PID das cinco rádios PRE/POST;
-- mesmo SHA das cinco playlists PRE/POST;
-- mesmos hashes dos dois arquivos NGINX Rádio;
-- mesmos hashes dos três webroots Rádio;
-- mesmo PID MediaMTX;
-- cinco rádios continuam active/ready/AAC/HLS;
-- portal Rádio continua servindo M3U8 pela rota `/hls/`.
-
-Qualquer violação pós-mutação dispara rollback TV.
-
-### Resultado obrigatório
+Resultado obrigatório:
 
 ```text
-CHG_TV_RESTORE_001=PASS
+CHG_TV_CANON_002_RUNTIME=PASS
+ALL_4_TVS_RUNTIME_READY=PASS
+ZERO_DTS_CANONICAL_PLAYOUT=PASS
 ALL_5_RADIOS_PRESERVED=PASS
-ALL_4_TVS_ON_AIR=PASS
-PUBLIC_TV_VHOSTS=PASS
-FALSE_POSITIVE_HEALTH_V3=PASS
+MEDIAMTX_PRESERVED=PASS
 ```
 
-## Trilha crítica
+## Trilha crítica atual
 
 | ID | Mudança | Estado |
 |---|---|---|
 | OBS-NS1-RAYX-20260912 | Raio-X profundo principal | **DONE / ANALISADO** |
-| OBS-NS1-HEALTH-V3 | Health sem falsos positivos | **READY / READ-ONLY** |
-| CHG-TV-RESTORE-001 | Restaurar 4 TVs preservando Rádio | **ACTIVE / AUTORIZADA** |
-| CHG-TVKIDS-001 antigo | Executor anterior | **STALE / NÃO USAR** |
+| CHG-TV-CANON-001 | Convergência WEB/NGINX TV | **ACTIVE / AUTORIZADA** |
+| CHG-TV-CANON-002 | Convergência runtime 4 TVs | **READY / BLOQUEADA ATÉ CANON-001 PASS** |
+| CHG-TV-RESTORE-001 | Restore incremental anterior | **SUPERSEDED / NÃO EXECUTAR** |
+| CHG-TVKIDS-WEB-003 | Patch isolado TVKIDS | **SUPERSEDED / NÃO EXECUTAR** |
+| CHG-TVWEB01/02 | Vhosts TV legados | **SUPERSEDED / NÃO EXECUTAR** |
+| CHG-TV-PLAYER-002 | Player incremental anterior | **SUPERSEDED / NÃO EXECUTAR** |
 | CHG-R01/R02/R03/RWEB01 | Rádio | **FROZEN / produção atual preservada** |
 
 ## Regra de execução
 
-A única production-change autorizada neste momento é `CHG-TV-RESTORE-001`. Nenhum outro apply, restart, reload ou mudança Rádio deve ser executado em paralelo. O executor contém lock global, gates PRE/POST e rollback próprio.
+A única production-change autorizada agora é **CHG-TV-CANON-001**. Só após PASS documental e factual do owner NGINX único será liberada `CHG-TV-CANON-002`.
