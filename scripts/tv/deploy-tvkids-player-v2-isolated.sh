@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Nome: deploy-tvkids-player-v2-isolated.sh
-# Versão: 1.0
+# Versão: 1.1
 # Owner: TV + Core
 # Safety class: production-change (TVKIDS web only)
 # Change ID: CHG-TVKIDS-WEB-003
-# Propósito: publicar player TVKIDS fullscreen/resiliente e vhost dedicado sem reiniciar Rádio, TVKIDS ou MediaMTX.
+# Propósito: publicar player TVKIDS fullscreen/resiliente e migrar ownership NGINX legado conhecido,
+# preservando Rádio, TVKIDS runtime, MediaMTX e os vhosts das demais TVs.
 set -Eeuo pipefail
 IFS=$'\n\t'
 export LC_ALL=C
@@ -16,21 +17,26 @@ NGINX_SRC="$REPO/candidates/CHG-TVKIDS-WEB-003/studiosat-tvkids-player-v2.conf"
 WEBROOT="/var/www/studiosat-tv-player"
 DST="$WEBROOT/index.html"
 NGINX_DST="/etc/nginx/conf.d/studiosat-tvkids-player.conf"
+LEGACY_ONLY="/etc/nginx/conf.d/zz-tvkids-isolated.conf"
+LEGACY_SHARED="/etc/nginx/conf.d/tps-tv-web.conf"
 LOCK="/run/lock/studiosat-production-change.lock"
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="/tmp/CHG-TVKIDS-WEB-003-$TS"
 BACKUP="/var/backups/studiosat/CHG-TVKIDS-WEB-003/$TS"
 RADIOS=(radioprincipal radiopop radiorock radioclassicas radiocountry)
 HOSTS=(tvkids.studiosatweb.com.br www.tvkids.studiosatweb.com.br tvkidsweb.studiosatweb.com.br www.tvkidsweb.studiosatweb.com.br)
+OTHER_TV_HOSTS=(tvteens.studiosatweb.com.br www.tvteens.studiosatweb.com.br tvviva.studiosatweb.com.br www.tvviva.studiosatweb.com.br tvmaisjovem.studiosatweb.com.br www.tvmaisjovem.studiosatweb.com.br)
 MUTATED=0
 WEBROOT_EXISTED=0
 INDEX_EXISTED=0
 NGINX_EXISTED=0
+LEGACY_ONLY_EXISTED=0
+LEGACY_SHARED_EXISTED=0
 
 have(){ command -v "$1" >/dev/null 2>&1; }
 die(){ echo "FATAL=$*" >&2; exit 1; }
 sha(){ sha256sum "$1" | awk '{print $1}'; }
-for c in git systemctl curl jq nginx sha256sum awk grep sed flock install cp mv rm mkdir find sort xargs diff tar date timeout ffprobe; do have "$c" || die "MISSING_TOOL:$c"; done
+for c in git systemctl curl jq nginx sha256sum awk grep sed flock install cp mv rm mkdir find sort xargs diff tar date timeout ffprobe python3 rmdir readlink; do have "$c" || die "MISSING_TOOL:$c"; done
 [[ ${EUID:-$(id -u)} -eq 0 ]] || die RUN_AS_ROOT
 cd "$REPO"
 git fetch origin main --quiet
@@ -47,11 +53,9 @@ exec > >(tee "$OUT/REPORT.txt") 2>&1
 exec 9>"$LOCK"
 flock -n 9 || die ANOTHER_STUDIOSAT_CHANGE_HOLDS_LOCK
 
-# Never overlap another systemd mutation.
 jobs="$(systemctl list-jobs --no-legend 2>/dev/null || true)"
 [[ -z "$jobs" ]] || { printf '%s\n' "$jobs" > "$OUT/systemd-jobs.txt"; die SYSTEMD_JOB_IN_PROGRESS; }
 
-# Baseline immutable: Radio + MediaMTX + TVKIDS runtime.
 MTX_PRE="$(systemctl show tps-mediamtx.service -p MainPID --value 2>/dev/null || true)"
 TVKIDS_PRE="$(systemctl show tps-tvkids-playout.service -p MainPID --value 2>/dev/null || true)"
 [[ "$MTX_PRE" =~ ^[1-9][0-9]*$ ]] || die MEDIAMTX_NOT_RUNNING
@@ -78,7 +82,6 @@ for d in /var/www/studiosat-radio-player /var/www/studiosat-radio-portal /var/ww
   find "$d" -type f -print0 | sort -z | xargs -0 sha256sum > "$OUT/$n.pre.sha256"
 done
 
-# TVKIDS path must already be genuinely healthy locally.
 ready="$(curl -fsS --connect-timeout 3 --max-time 6 http://127.0.0.1:9997/v3/paths/list 2>/dev/null | jq -r '.items[]?|select(.name=="tvkids")|.ready' | head -1 || true)"
 [[ "$ready" == true ]] || die TVKIDS_MEDIAMTX_NOT_READY
 probe="$(timeout 15 ffprobe -v error -rtsp_transport tcp -show_entries stream=codec_type,codec_name,width,height,sample_rate,channels -of compact=p=0:nk=0 rtsp://127.0.0.1:8554/tvkids 2>/dev/null || true)"
@@ -87,12 +90,70 @@ grep -q 'codec_name=aac' <<<"$probe" && grep -q 'sample_rate=48000' <<<"$probe" 
 code="$(curl -LsS --connect-timeout 3 --max-time 12 -o "$OUT/tvkids.local.m3u8" -w '%{http_code}' http://127.0.0.1:8888/tvkids/index.m3u8 || true)"
 [[ "$code" == 200 ]] && grep -q '^#EXTM3U' "$OUT/tvkids.local.m3u8" || die TVKIDS_LOCAL_HLS_FAIL
 
-# Existing explicit ownership of TVKIDS names outside our target would be unsafe.
 nginx -t > "$OUT/nginx-pre.txt" 2>&1 || die NGINX_PRETEST_FAIL
+nginx -T > "$OUT/nginx-T.pre.txt" 2>&1 || die NGINX_T_PRE_FAIL
+
+# Classifica ownership atual. Somente dois legados conhecidos podem ser migrados automaticamente.
+: > "$OUT/tvkids-vhost-owners.pre.txt"
 for h in "${HOSTS[@]}"; do
-  matches="$(grep -RIl --exclude='studiosat-tvkids-player.conf' -- "$h" /etc/nginx/conf.d /etc/nginx/sites-enabled 2>/dev/null || true)"
-  [[ -z "$matches" ]] || { printf '%s\n' "$matches" > "$OUT/conflict-$h.txt"; die "EXPLICIT_TVKIDS_VHOST_CONFLICT:$h"; }
-done
+  grep -RIl --exclude='studiosat-tvkids-player.conf' -- "$h" /etc/nginx/conf.d /etc/nginx/sites-enabled 2>/dev/null || true
+done | sort -u | tee "$OUT/tvkids-vhost-owners.pre.txt"
+
+while IFS= read -r f; do
+  [[ -n "$f" ]] || continue
+  case "$f" in
+    "$LEGACY_ONLY"|"$LEGACY_SHARED") ;;
+    *) die "UNKNOWN_EXPLICIT_TVKIDS_VHOST_CONFLICT:$f" ;;
+  esac
+done < "$OUT/tvkids-vhost-owners.pre.txt"
+
+if [[ -f "$LEGACY_ONLY" ]]; then
+  LEGACY_ONLY_EXISTED=1
+  # Este legado só pode ser removido automaticamente se for realmente TVKIDS-only.
+  if grep -Eqi 'tvteens|tvviva|tvmaisjovem|radioprincipal|radiopop|radiorock|radioclassicas|radiocountry|(^|[.])radio\.studiosatweb\.com\.br' "$LEGACY_ONLY"; then
+    die LEGACY_TVKIDS_ONLY_FILE_HAS_OTHER_OWNERS
+  fi
+  cp -a "$LEGACY_ONLY" "$BACKUP/zz-tvkids-isolated.conf.before"
+  echo "legacy_tvkids_only_sha=$(sha "$LEGACY_ONLY")"
+fi
+
+PATCHED_SHARED="$OUT/tps-tv-web.conf.patched"
+if [[ -f "$LEGACY_SHARED" ]]; then
+  LEGACY_SHARED_EXISTED=1
+  cp -a "$LEGACY_SHARED" "$BACKUP/tps-tv-web.conf.before"
+  # Jamais migrar automaticamente se o arquivo compartilhado tiver nomes de Rádio.
+  if grep -Eqi 'radioprincipal|radiopop|radiorock|radioclassicas|radiocountry|(^|[.])radio\.studiosatweb\.com\.br' "$LEGACY_SHARED"; then
+    die LEGACY_SHARED_TV_FILE_CONTAINS_RADIO
+  fi
+  python3 - "$LEGACY_SHARED" "$PATCHED_SHARED" <<'PY'
+import re,sys
+src,dst=sys.argv[1:3]
+remove={
+ 'tvkids.studiosatweb.com.br','www.tvkids.studiosatweb.com.br',
+ 'tvkidsweb.studiosatweb.com.br','www.tvkidsweb.studiosatweb.com.br'
+}
+out=[]
+for line in open(src,encoding='utf-8'):
+    m=re.match(r'^(\s*server_name\s+)([^;]+)(;.*)$',line)
+    if m:
+        names=m.group(2).split()
+        names=[n for n in names if n not in remove]
+        if not names:
+            raise SystemExit('server_name would become empty')
+        line=m.group(1)+' '.join(names)+m.group(3)
+    out.append(line)
+open(dst,'w',encoding='utf-8').writelines(out)
+PY
+  # Depois do patch, nenhum server_name TVKIDS pode restar; as outras TVs devem continuar presentes.
+  if grep -E '^[[:space:]]*server_name[[:space:]].*(tvkids|tvkidsweb)\.studiosatweb\.com\.br' "$PATCHED_SHARED" >/dev/null; then
+    die LEGACY_SHARED_PATCH_LEFT_TVKIDS_OWNER
+  fi
+  for oh in "${OTHER_TV_HOSTS[@]}"; do
+    grep -q -- "$oh" "$PATCHED_SHARED" || die "LEGACY_SHARED_PATCH_LOST_OTHER_TV:$oh"
+  done
+  echo "legacy_shared_pre_sha=$(sha "$LEGACY_SHARED")"
+  echo "legacy_shared_candidate_sha=$(sha "$PATCHED_SHARED")"
+fi
 
 echo PRECHECK_TVKIDS_WEB=PASS
 
@@ -104,6 +165,8 @@ rollback(){
   set +e
   echo '=== ROLLBACK CHG-TVKIDS-WEB-003 ==='
   if (( NGINX_EXISTED == 1 )); then cp -a "$BACKUP/studiosat-tvkids-player.conf.before" "$NGINX_DST"; else rm -f "$NGINX_DST"; fi
+  if (( LEGACY_ONLY_EXISTED == 1 )); then cp -a "$BACKUP/zz-tvkids-isolated.conf.before" "$LEGACY_ONLY"; else rm -f "$LEGACY_ONLY"; fi
+  if (( LEGACY_SHARED_EXISTED == 1 )); then cp -a "$BACKUP/tps-tv-web.conf.before" "$LEGACY_SHARED"; fi
   if (( INDEX_EXISTED == 1 )); then cp -a "$BACKUP/index.html.before" "$DST"; else rm -f "$DST"; fi
   if (( WEBROOT_EXISTED == 0 )); then rmdir "$WEBROOT" 2>/dev/null || true; fi
   nginx -t >/dev/null 2>&1 && systemctl reload nginx >/dev/null 2>&1 || true
@@ -115,12 +178,26 @@ MUTATED=1
 install -d -o www-data -g www-data -m 0755 "$WEBROOT"
 install -o www-data -g www-data -m 0644 "$PLAYER_SRC" "$DST.new-$TS"
 mv -f "$DST.new-$TS" "$DST"
+
+# Migra os owners legados conhecidos antes de instalar o owner dedicado.
+if (( LEGACY_ONLY_EXISTED == 1 )); then rm -f "$LEGACY_ONLY"; fi
+if (( LEGACY_SHARED_EXISTED == 1 )); then install -o root -g root -m 0644 "$PATCHED_SHARED" "$LEGACY_SHARED"; fi
 install -o root -g root -m 0644 "$NGINX_SRC" "$NGINX_DST"
+
 nginx -t | tee "$OUT/nginx-post-install.txt"
+nginx -T > "$OUT/nginx-T.post-install.txt" 2>&1 || die NGINX_T_POST_INSTALL_FAIL
+if grep -Eqi 'conflicting server name.*(tvkids|tvkidsweb)' "$OUT/nginx-T.post-install.txt"; then
+  die DUPLICATE_TVKIDS_SERVER_NAME_AFTER_MIGRATION
+fi
+# Somente o owner dedicado pode conter os quatro nomes TVKIDS após a migração.
+for h in "${HOSTS[@]}"; do
+  mapfile -t owners < <(grep -RIl -- "$h" /etc/nginx/conf.d /etc/nginx/sites-enabled 2>/dev/null | sort -u || true)
+  [[ ${#owners[@]} -eq 1 && "${owners[0]}" == "$NGINX_DST" ]] || { printf '%s\n' "${owners[@]}" > "$OUT/post-owner-$h.txt"; die "TVKIDS_OWNER_NOT_UNIQUE:$h"; }
+done
+
 systemctl reload nginx
 sleep 2
 
-# Verify every TVKIDS alias owns the new page and real HLS.
 for h in "${HOSTS[@]}"; do
   hdr="$OUT/$h.headers"; root="$OUT/$h.root"; hls="$OUT/$h.hls"
   rc="$(curl -kLsS -D "$hdr" --connect-timeout 5 --max-time 15 -o "$root" -w '%{http_code}' "https://$h/" || true)"
@@ -131,7 +208,6 @@ for h in "${HOSTS[@]}"; do
   [[ "$hc" == 200 ]] && grep -q '^#EXTM3U' "$hls" || die "PUBLIC_HLS_BAD:$h:$hc"
 done
 
-# Runtime invariants: no restart of TVKIDS/MediaMTX/radio, no Radio file drift.
 [[ "$(systemctl show tps-mediamtx.service -p MainPID --value)" == "$MTX_PRE" ]] || die MEDIAMTX_PID_CHANGED
 [[ "$(systemctl show tps-tvkids-playout.service -p MainPID --value)" == "$TVKIDS_PRE" ]] || die TVKIDS_PID_CHANGED
 while IFS=$'\t' read -r st pidpre shpre; do
@@ -145,9 +221,15 @@ for d in /var/www/studiosat-radio-player /var/www/studiosat-radio-portal /var/ww
   diff -u "$OUT/$n.pre.sha256" "$OUT/$n.post.sha256" > "$OUT/$n.diff" || die "RADIO_WEBROOT_CHANGED:$d"
 done
 
+# Se havia shared TV legado, comprova que os demais hosts continuam presentes no NGINX carregado.
+if (( LEGACY_SHARED_EXISTED == 1 )); then
+  for oh in "${OTHER_TV_HOSTS[@]}"; do grep -q -- "$oh" "$OUT/nginx-T.post-install.txt" || die "OTHER_TV_VHOST_LOST:$oh"; done
+fi
+
 trap - EXIT
 printf 'player_sha=%s\n' "$(sha "$DST")"
 printf 'nginx_sha=%s\n' "$(sha "$NGINX_DST")"
+echo TVKIDS_LEGACY_VHOST_MIGRATION=PASS
 echo CHG_TVKIDS_WEB_003=PASS
 echo TVKIDS_FULLSCREEN_PLAYER_V2=PASS
 echo TVKIDS_PUBLIC_HLS=PASS
