@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>Studio Sat TV — Ao Vivo</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.2/dist/hls.min.js"></script>
+<style>
+:root{color-scheme:dark;--accent:#ff1744}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;margin:0;background:#000;overflow:hidden;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff}
+#stage{position:fixed;inset:0;background:#000;overflow:hidden;touch-action:manipulation}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+#ui{position:absolute;inset:0;pointer-events:none;opacity:1;transition:opacity .35s ease}
+#ui.hide{opacity:0}.top{position:absolute;top:0;left:0;right:0;padding:18px 24px 70px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,rgba(0,0,0,.78),transparent)}
+.brand{font-weight:950;letter-spacing:.08em;font-size:clamp(18px,2.5vw,34px);text-shadow:0 2px 16px #000}.brand b{color:var(--accent)}
+.live{font-weight:900;font-size:12px;letter-spacing:.14em;background:#d5002f;border-radius:999px;padding:8px 12px;box-shadow:0 0 26px rgba(255,0,56,.45)}
+.bottom{position:absolute;left:18px;right:18px;bottom:18px;display:flex;justify-content:flex-start}.card{padding:12px 16px;border-radius:14px;background:rgba(0,0,0,.58);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14)}
+.station{font-size:clamp(20px,3vw,38px);font-weight:950}.status{font-size:13px;margin-top:3px;opacity:.85}.ok{color:#7ff0a6}.warn{color:#ffd36b}.err{color:#ff8fa3}
+#gate{position:absolute;inset:0;z-index:5;display:none;place-items:center;background:radial-gradient(circle at center,rgba(18,25,40,.45),rgba(0,0,0,.86));padding:24px;text-align:center}
+#gate.show{display:grid}.gatebox{max-width:540px;border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:26px;background:rgba(4,7,12,.86);box-shadow:0 24px 80px rgba(0,0,0,.55)}
+.gatebox h1{margin:0 0 8px;font-size:clamp(25px,5vw,50px)}.gatebox p{margin:0;line-height:1.45;opacity:.82}.btn{border:0;border-radius:14px;padding:14px 22px;margin-top:18px;background:#fff;color:#000;font-weight:900;font-size:16px;cursor:pointer}
+#tap{position:absolute;inset:0;z-index:3;border:0;background:transparent;cursor:default}
+#debug{display:none;position:absolute;right:10px;bottom:10px;z-index:8;background:rgba(0,0,0,.72);padding:8px 10px;border-radius:8px;font:11px/1.35 ui-monospace,monospace;white-space:pre}
+@media(max-width:680px){.top{padding:14px 14px 54px}.bottom{left:10px;right:10px;bottom:10px}.card{padding:10px 12px}}
+</style>
+</head>
+<body>
+<main id="stage">
+<video id="video" autoplay muted playsinline preload="auto"></video>
+<button id="tap" aria-label="Ativar áudio e tela cheia"></button>
+<div id="ui"><div class="top"><div class="brand">STUDIO SAT <b>TV</b></div><div class="live">● AO VIVO</div></div><div class="bottom"><div class="card"><div id="station" class="station"></div><div id="status" class="status">Conectando…</div></div></div></div>
+<section id="gate"><div class="gatebox"><h1 id="gateTitle"></h1><p>O sinal já está ao vivo. Toque uma vez para ativar o áudio e solicitar tela cheia.</p><button id="enter" class="btn">▶ Assistir ao vivo</button></div></section>
+<div id="debug"></div>
+</main>
+<script>
+(()=>{'use strict';
+const stations={
+ 'tvkids.studiosatweb.com.br':['tvkids','TVKIDS'],'www.tvkids.studiosatweb.com.br':['tvkids','TVKIDS'],'tvkidsweb.studiosatweb.com.br':['tvkids','TVKIDS'],'www.tvkidsweb.studiosatweb.com.br':['tvkids','TVKIDS'],
+ 'tvteens.studiosatweb.com.br':['tvteens','TVTEENS'],'www.tvteens.studiosatweb.com.br':['tvteens','TVTEENS'],
+ 'tvviva.studiosatweb.com.br':['tvviva','TVVIVA'],'www.tvviva.studiosatweb.com.br':['tvviva','TVVIVA'],
+ 'tvmaisjovem.studiosatweb.com.br':['tvmaisjovem','TV MAIS JOVEM'],'www.tvmaisjovem.studiosatweb.com.br':['tvmaisjovem','TV MAIS JOVEM']
+};
+const cfg=stations[location.hostname.toLowerCase()]||['tvkids','TVKIDS'];const id=cfg[0],name=cfg[1],stream='/'+id+'/index.m3u8';
+const v=document.getElementById('video'),ui=document.getElementById('ui'),gate=document.getElementById('gate'),enter=document.getElementById('enter'),tap=document.getElementById('tap'),status=document.getElementById('status'),station=document.getElementById('station'),gateTitle=document.getElementById('gateTitle'),debug=document.getElementById('debug');
+station.textContent='STUDIO SAT — '+name;gateTitle.textContent='STUDIO SAT — '+name;
+let hls=null,lastProgress=Date.now(),lastTime=-1,lastLevelUpdate=0,rebuildCount=0,rebuildWindow=Date.now(),uiTimer=null,userActivated=false,wake=null;
+function state(t,c=''){status.textContent=t;status.className='status '+c}
+function showUI(){ui.classList.remove('hide');clearTimeout(uiTimer);uiTimer=setTimeout(()=>ui.classList.add('hide'),4000)}
+async function keepAwake(){try{if('wakeLock'in navigator){wake=await navigator.wakeLock.request('screen')}}catch(_){}}
+function liveEdge(){try{if(hls&&Number.isFinite(hls.liveSyncPosition))return hls.liveSyncPosition;if(v.seekable&&v.seekable.length)return v.seekable.end(v.seekable.length-1)}catch(_){}return null}
+function syncLive(){const p=liveEdge();if(Number.isFinite(p)&&Math.abs(v.currentTime-p)>8){try{v.currentTime=Math.max(0,p-.8)}catch(_){}}}
+async function play(){try{await v.play();state(v.muted?'AO VIVO — toque para áudio':'AO VIVO','ok')}catch(_){gate.classList.add('show');state('Sinal pronto — toque para iniciar','warn')}}
+function destroy(){try{hls?.destroy()}catch(_){}hls=null}
+function hardRecovery(reason){const now=Date.now();if(now-rebuildWindow>120000){rebuildWindow=now;rebuildCount=0}rebuildCount++;if(rebuildCount<=3){setTimeout(()=>build('recover:'+reason),1200);return}sessionStorage.setItem('studiosat-tv-last-recovery',reason);location.replace(location.pathname+'?recover='+now)}
+function build(reason='initial'){
+ destroy();state(reason==='initial'?'Conectando ao sinal…':'Reconectando…','warn');lastLevelUpdate=Date.now();
+ if(window.Hls&&Hls.isSupported()){
+  hls=new Hls({enableWorker:true,lowLatencyMode:false,backBufferLength:30,maxBufferLength:30,maxMaxBufferLength:60,liveSyncDurationCount:3,liveMaxLatencyDurationCount:8,maxLiveSyncPlaybackRate:1.2,manifestLoadingMaxRetry:8,levelLoadingMaxRetry:8,fragLoadingMaxRetry:8,manifestLoadingRetryDelay:1000,levelLoadingRetryDelay:1000,fragLoadingRetryDelay:1000,startPosition:-1});
+  hls.attachMedia(v);hls.on(Hls.Events.MEDIA_ATTACHED,()=>hls.loadSource(stream));
+  hls.on(Hls.Events.MANIFEST_PARSED,()=>{lastLevelUpdate=Date.now();syncLive();play()});
+  hls.on(Hls.Events.LEVEL_UPDATED,()=>{lastLevelUpdate=Date.now()});
+  hls.on(Hls.Events.ERROR,(_,d)=>{if(!d.fatal)return;if(d.type===Hls.ErrorTypes.NETWORK_ERROR){state('Rede instável — recuperando…','warn');try{hls.startLoad(-1)}catch(_){hardRecovery('network')}}else if(d.type===Hls.ErrorTypes.MEDIA_ERROR){state('Recuperando decoder…','warn');try{hls.recoverMediaError()}catch(_){hardRecovery('media')}}else hardRecovery('fatal')});
+ }else if(v.canPlayType('application/vnd.apple.mpegurl')){
+  v.src=stream;v.addEventListener('loadedmetadata',()=>{lastLevelUpdate=Date.now();syncLive();play()},{once:true});
+ }else{state('Navegador sem suporte HLS','err');gate.classList.add('show')}
+}
+async function activate(){userActivated=true;gate.classList.remove('show');v.muted=false;try{await v.play()}catch(_){};try{await document.documentElement.requestFullscreen?.()}catch(_){};keepAwake();showUI()}
+function watchdog(){const now=Date.now(),t=v.currentTime;if(!v.paused&&v.readyState>=2&&t>lastTime+.05){lastTime=t;lastProgress=now}if(!document.hidden&&now-lastProgress>15000){lastProgress=now;state('Sinal parado — retomando…','warn');syncLive();try{hls?.startLoad(-1)}catch(_){};hardRecovery('stall')}if(lastLevelUpdate&&now-lastLevelUpdate>35000){lastLevelUpdate=now;state('Atualizando sinal…','warn');hardRecovery('stale-playlist')}if(new URLSearchParams(location.search).has('debug')){debug.style.display='block';debug.textContent=`station=${id}\nready=${v.readyState} paused=${v.paused} muted=${v.muted}\ntime=${v.currentTime.toFixed(2)}\nlevel=${new Date(lastLevelUpdate).toISOString()}\nrebuilds=${rebuildCount}`}}
+enter.addEventListener('click',activate);tap.addEventListener('click',()=>{if(!userActivated)activate();else showUI()});
+v.addEventListener('playing',()=>{lastProgress=Date.now();state(v.muted?'AO VIVO — toque para áudio':'AO VIVO','ok');if(v.muted&&!userActivated)gate.classList.add('show')});v.addEventListener('waiting',()=>state('Bufferizando…','warn'));v.addEventListener('stalled',()=>hardRecovery('stalled-event'));v.addEventListener('error',()=>hardRecovery('video-error'));
+window.addEventListener('online',()=>{lastProgress=Date.now();build('online')});window.addEventListener('offline',()=>state('Sem conexão — aguardando rede…','warn'));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastProgress=Date.now();keepAwake();syncLive();try{hls?.startLoad(-1)}catch(_){};play()}});document.addEventListener('fullscreenchange',showUI);
+setInterval(watchdog,5000);keepAwake();build();showUI();
+})();
+</script>
+</body>
+</html>
