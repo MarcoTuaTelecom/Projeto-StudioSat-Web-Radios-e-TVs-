@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Nome: recover-tvkids-public-20260914.sh
-# Versão: 1.0
+# Versão: 1.1
 # Escopo: somente TVKIDS + vhost TVKIDS. Rádio é somente observado e deve permanecer bit-a-bit/PID estável.
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -30,7 +30,7 @@ die(){ echo "FATAL=$*" >&2; exit 1; }
 sha(){ sha256sum "$1" | awk '{print $1}'; }
 have(){ command -v "$1" >/dev/null 2>&1; }
 
-for c in git systemctl curl jq nginx sha256sum awk grep flock install cp mv rm mkdir find sort xargs diff tar date sleep; do
+for c in git systemctl curl jq nginx sha256sum awk grep flock install cp mv rm mkdir find sort xargs diff tar date sleep seq head; do
   have "$c" || die "MISSING_TOOL:$c"
 done
 [[ ${EUID:-$(id -u)} -eq 0 ]] || die RUN_AS_ROOT
