@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # Nome: authority-replica-candidate.py
-# Versão: 0.2.0-candidate / 2026-09-17
+# Versão: 0.3.0-candidate / 2026-09-17
 # Owner: Rádio | Safety: candidate-write-isolated | Change: RADIOPRINCIPAL-NS1-C04
 # Escreve somente em /var/lib/studiosat/radio-v2/candidates/radioprincipal-authority-replica.
 import argparse,hashlib,json,os,re,sqlite3,sys,tempfile,time,unicodedata
 from datetime import datetime,timezone
 from pathlib import Path
 import xml.etree.ElementTree as ET
-V='0.2.0-candidate'
+V='0.3.0-candidate'
 SYNC='/var/lib/studiosat/radio-v2/radioboss-sync/radioprincipal/current'
 CAND='/var/lib/studiosat/radio-v2/candidates/radioprincipal-authority-replica'
 STORE='/srv/tpsmedia/repository/channels/radioprincipal/mirror-store'
@@ -193,9 +193,9 @@ def selftest():
   r=Path(td);s=r/'s';o=r/'o';st=r/'store';s.mkdir();st.mkdir();blob=b'abc';sha=hashlib.sha256(blob).hexdigest();(st/(sha+'.mp3')).write_bytes(blob)
   def w(n,x):(s/n).write_text(json.dumps(x),encoding='utf-8')
   pl='<Playlist NAME="Tarde Studio Sat Principal"><TRACK FILENAME="C:\\M\\A.mp3"/><TRACK FILENAME="C:\\M\\B.mp3"/></Playlist>';wrap=lambda k,d,rev=1:{'kind':k,'revision':rev,'received_at_utc':now(),'payload':{'data':d}}
-  w('playlist.json',{'kind':'playlist','revision':1,'received_at_utc':now(),'payload':{'xml':pl}});w('schedule.json',wrap('schedule',{'events':[{'time':'17:00:00'}]}));w('librarymanifest.json',wrap('librarymanifest',{'files':[{'sha256':sha,'path':'C:\\M\\A.mp3'},{'sha256':'f'*64,'path':'C:\\M\\B.mp3'}]}));w('playback.json',wrap('playback',{'state':'play','playlistpos':0,'pos_ms':1000,'len_ms':10000,'current':{'FILENAME':'C:\\M\\A.mp3'},'next':{'FILENAME':'C:\\M\\B.mp3'}}));w('heartbeat.json',wrap('heartbeat',{'online':True}));a=argparse.Namespace(sync=str(s),out=str(o),db=None,index=str(r/'none'),store=str(st),watch=False,interval=10,heartbeat_max_age=30,playback_max_age=30);x=sync_once(a);assert x['items']==2 and x['available']==1 and x['missing']==1;p=load(s/'playlist.json');p['revision']=2;p['received_at_utc']=now();w('playlist.json',p);y=sync_once(a);assert y['playlist_revision_id']==x['playlist_revision_id'] and y['editorial_noop'];p['payload']['xml']=pl.replace('A.mp3"/><TRACK FILENAME="C:\\M\\B','B.mp3"/><TRACK FILENAME="C:\\M\\A');w('playlist.json',p);z=sync_once(a);assert z['playlist_revision_id']!=x['playlist_revision_id'];print('SELF_TEST=PASS')
+  w('playlist.json',{'kind':'playlist','revision':1,'received_at_utc':now(),'payload':{'xml':pl}});w('schedule.json',wrap('schedule',{'events':[{'time':'17:00:00'}]}));w('librarymanifest.json',wrap('librarymanifest',{'files':[{'sha256':sha,'path':'C:\\M\\A.mp3'},{'sha256':'f'*64,'path':'C:\\M\\B.mp3'}]}));w('playback.json',wrap('playback',{'state':'play','playlistpos':0,'pos_ms':1000,'len_ms':10000,'current':{'FILENAME':'C:\\M\\A.mp3'},'next':{'FILENAME':'C:\\M\\B.mp3'}}));w('heartbeat.json',wrap('heartbeat',{'online':True}));a=argparse.Namespace(sync=str(s),out=str(o),db=None,index=str(r/'none'),store=str(st),watch=False,interval=5,heartbeat_max_age=15,playback_max_age=10);x=sync_once(a);assert x['items']==2 and x['available']==1 and x['missing']==1;p=load(s/'playlist.json');p['revision']=2;p['received_at_utc']=now();w('playlist.json',p);y=sync_once(a);assert y['playlist_revision_id']==x['playlist_revision_id'] and y['editorial_noop'];p['payload']['xml']=pl.replace('A.mp3"/><TRACK FILENAME="C:\\M\\B','B.mp3"/><TRACK FILENAME="C:\\M\\A');w('playlist.json',p);z=sync_once(a);assert z['playlist_revision_id']!=x['playlist_revision_id'];print('SELF_TEST=PASS')
 def main():
- p=argparse.ArgumentParser();p.add_argument('--sync',default=SYNC);p.add_argument('--out',default=CAND);p.add_argument('--db');p.add_argument('--index',default=INDEX);p.add_argument('--store',default=STORE);p.add_argument('--watch',action='store_true');p.add_argument('--interval',type=float,default=10);p.add_argument('--heartbeat-max-age',type=float,default=30);p.add_argument('--playback-max-age',type=float,default=30);p.add_argument('--self-test',action='store_true');a=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--sync',default=SYNC);p.add_argument('--out',default=CAND);p.add_argument('--db');p.add_argument('--index',default=INDEX);p.add_argument('--store',default=STORE);p.add_argument('--watch',action='store_true');p.add_argument('--interval',type=float,default=5);p.add_argument('--heartbeat-max-age',type=float,default=15);p.add_argument('--playback-max-age',type=float,default=10);p.add_argument('--self-test',action='store_true');a=p.parse_args()
  if a.self_test:selftest();return 0
  while True:
   try:sync_once(a)
