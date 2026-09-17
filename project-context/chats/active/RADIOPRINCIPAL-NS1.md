@@ -303,3 +303,27 @@ Mudanças versionadas:
 - contrato: `docs/10-radio/RADIOPRINCIPAL-C09-SHADOW-SYNC-5S-FAILOVER-CONTRACT.md`.
 
 Importante: o player público legado `mirror-playout.py` ainda usa `radioboss-live.json/matched_index` e não cumpre sozinho o contrato C09. Próxima implementação deve substituir essa lógica por checkpoint de `playback.json` + `pos_ms`, resolver assets imediatamente e adicionar anti-flap antes de promover.
+
+
+## Registro C12 — consolidação imediata do fallback e retirada de players antigos
+
+Motivação observada em produção:
+- público alternando entre áudio correto do RadioBOSS e conteúdo divergente do fallback NS1;
+- selector troca entre `radioprincipal_rb_harbor` e `radioprincipal_ns1_rtmp`;
+- fallback legado usa `current/media-map.json` e avança autonomamente quando perde o LIVE;
+- mirror-controller legado estava em timer de 30s.
+
+Ação C12 preparada:
+- script `scripts/radioprincipal/production/C12-CONSOLIDATE-RADIOPRINCIPAL-FALLBACK-NOW.sh`;
+- Git blob `d1233539b9fce59392c88cfd83f7cc4e50c2bf3d`;
+- commit `15965bd17d51b000d462df34a97b8c7399ffc010`;
+- sintaxe `bash -n` validada;
+- faz backup da configuração atual;
+- desabilita V8 stage/production/live-ingress antigos para evitar inicialização concorrente;
+- altera o mirror-controller para 5s;
+- força reconstrução imediata usando snapshot atual do RadioBOSS;
+- exige igualdade entre quantidade de itens do candidate e fallback, zero missing e somente paths no store canônico;
+- somente se o gate passar reinicia o shadow NS1;
+- não apaga MP3, não reinicia MediaMTX e não reinicia selector.
+
+Regra: não deletar pastas de mídia até provar que nenhuma referência ativa depende delas. Primeiro consolidar um único store canônico e retirar players concorrentes; depois remover legado com evidência.
