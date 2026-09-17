@@ -153,3 +153,24 @@ Não reinicie o projeto.
 Não presuma que estados históricos ainda são atuais.
 Primeiro reconfirme o baseline vivo somente leitura e continue do próximo passo registrado.
 ```
+
+## Registro C03 — XRAY canônico e executor reproduzível
+
+Em `2026-09-17` o arquivo `STUDIOSAT-RADIOPRINCIPAL-FULL-XRAY-V2.sh` fornecido pelo operador foi validado localmente com `bash -n`; os 11 blocos Python embutidos também foram compilados sem erro. O corpo funcional foi preservado e recebeu somente o cabeçalho de governança exigido por `scripts/README.md`.
+
+Arquivos registrados na branch `reorg/project-context-v2`:
+
+- `scripts/radioprincipal/STUDIOSAT-RADIOPRINCIPAL-FULL-XRAY-V2.sh`
+- `scripts/radioprincipal/RUN-RADIOPRINCIPAL-BASELINE.sh`
+- `scripts/radioprincipal/README.md`
+
+Integridade aprovada do XRAY no GitHub:
+
+- Git blob SHA: `5128ecfb411bb4244cac7b383a2fef62bfc68aac`
+- commit de inclusão do XRAY: `b01f6b4ff1e93d619aff70f7882eafbfc7310bc8`
+- commit do executor: `9ff3fd8d197eb0dbf81352ec97280f5191e7573d`
+- commit das instruções de recuperação: `8fbd9f57a91276823be5353dbe8a93c6772104c9`
+
+O executor baixa o XRAY canônico pela API pública do GitHub, compara o blob recebido e o blob calculado localmente com o SHA aprovado, executa `bash -n`, instala a cópia em `/root/STUDIOSAT-RADIOPRINCIPAL-FULL-XRAY-V2.sh` com modo `0700` e só então executa a coleta. Se o XRAY versionado mudar sem atualização explícita do executor, a execução aborta.
+
+Nenhuma mudança de produção foi executada no ciclo C03. O próximo passo continua sendo executar este baseline read-only no NS1 e devolver o relatório atual para comparação com C02.
