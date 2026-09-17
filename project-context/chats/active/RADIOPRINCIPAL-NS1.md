@@ -276,3 +276,30 @@ Regra operacional fixada:
 - conta SSH dedicada só pode encaminhar para `127.0.0.1:18005` no NS1.
 
 Próximo gate: confirmar no NS1 a conexão TCP ativa do RadioBOSS no Harbor, metadados chegando e selector escolhendo `radioprincipal_rb_harbor`; depois seguir para transferência automática de assets faltantes da playlist em <=10s.
+
+
+## Registro C09 — shadow síncrono <=5s e anti-flap
+
+Em 2026-09-17 o requisito operacional foi apertado de <=10s para <=5s.
+
+Motivação observada em produção:
+- RadioBOSS LIVE apresentou microflaps;
+- selector alternou entre `radioprincipal_rb_harbor` e `radioprincipal_ns1_rtmp`;
+- fallback NS1 ainda estava baseado em fila/posição legadas, causando alternância entre conteúdo correto do RadioBOSS e conteúdo editorial divergente do NS1.
+
+Regra definitiva:
+- RadioBOSS continua autoridade editorial;
+- NS1 deve replicar fila efetiva + current + `playlistpos` + `pos_ms` + next + schedule + itens dinâmicos;
+- reconciliação completa no máximo a cada 5s, com processamento imediato de eventos;
+- fallback assume no mesmo item e aproximadamente no mesmo ponto;
+- hora certa/comerciais/temperatura/itens especiais devem seguir a fila efetiva, não uma playlist independente;
+- retorno ao LIVE somente após janela contínua de estabilidade; nunca alternar imediatamente a cada microqueda.
+
+Mudanças versionadas:
+- `authority-replica-candidate.py` -> v0.3.0 candidate, default 5s, playback freshness 10s, heartbeat freshness 15s;
+- blob `c7a6285585ed11f0508bfc10a2a0bdac2adbd1b0`;
+- runner v1.2 pinado ao blob novo e `--watch --interval 5`;
+- activation script C07 atualizado para instalar watch 5s;
+- contrato: `docs/10-radio/RADIOPRINCIPAL-C09-SHADOW-SYNC-5S-FAILOVER-CONTRACT.md`.
+
+Importante: o player público legado `mirror-playout.py` ainda usa `radioboss-live.json/matched_index` e não cumpre sozinho o contrato C09. Próxima implementação deve substituir essa lógica por checkpoint de `playback.json` + `pos_ms`, resolver assets imediatamente e adicionar anti-flap antes de promover.
