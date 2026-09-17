@@ -174,3 +174,41 @@ Integridade aprovada do XRAY no GitHub:
 O executor baixa o XRAY canônico pela API pública do GitHub, compara o blob recebido e o blob calculado localmente com o SHA aprovado, executa `bash -n`, instala a cópia em `/root/STUDIOSAT-RADIOPRINCIPAL-FULL-XRAY-V2.sh` com modo `0700` e só então executa a coleta. Se o XRAY versionado mudar sem atualização explícita do executor, a execução aborta.
 
 Nenhuma mudança de produção foi executada no ciclo C03. O próximo passo continua sendo executar este baseline read-only no NS1 e devolver o relatório atual para comparação com C02.
+
+
+## Registro C05 — autoridade temporal, snapshots stale e grade futura
+
+Em 2026-09-17, o primeiro candidate de réplica autoritativa importou a playlist recebida com:
+
+- 85 itens;
+- 85 assets disponíveis;
+- 0 missing;
+- 0 unresolved;
+- playback apontando para Donna Lewis / próximo Enigma;
+- banco SQLite candidate criado com sucesso.
+
+O probe de freshness executado aproximadamente às 19:07 America/Sao_Paulo mostrou que a origem de controle estava stale/offline:
+
+- playlist recebida ~18:20 local;
+- schedule recebido ~18:20 local;
+- librarymanifest recebido ~18:34 local;
+- playback recebido ~17:54 local;
+- heartbeat recebido ~18:43 local, `online=false`.
+
+Conclusão: a réplica de mídia estava completa, mas a autoridade temporal não estava fresca. O candidate v0.1 classificava incorretamente esse caso como `HOT_READY`.
+
+Correção C05:
+
+- candidate atualizado para `0.2.0-candidate`;
+- Git blob canônico: `16604dd88421950747ad7c66a264b29f8552710c`;
+- estados agora separam source freshness, playback freshness, replica completeness e queue alignment;
+- estado stale com réplica completa passa a `REPLICA_READY_SOURCE_STALE`, não `HOT_READY`;
+- runner atualizado e pinado ao novo blob;
+- runner Git blob: `26410b9f108a495f0b2cd2a9e9321b0e14b485fb`;
+- probe de grade futura: `scripts/radioprincipal/candidate/PROBE-PROGRAM-GRID.py`;
+- probe Git blob: `885ae526f4f65149258d4e5760968605eb876e62`;
+- documentação: `docs/10-radio/RADIOPRINCIPAL-RADIOBOSS-NS1-AUTHORITY-REPLICATION-v1.2-GRADE-TEMPORAL.md`.
+
+Regra incorporada: o NS1 não pode manter indefinidamente o último programa recebido. Se a grade previamente sincronizada indicar mudança às 19:00, o NS1 deve executar a nova programação pelo relógio local mesmo com o RadioBOSS desconectado, desde que grade e assets tenham sido previamente validados.
+
+Próximo passo exato: executar somente o probe read-only de grade futura para inspecionar `playlist_definitions` e a estrutura real de `schedule.json`; localizar como programas futuros e transições de horário são representados antes de implementar o executor autônomo.
