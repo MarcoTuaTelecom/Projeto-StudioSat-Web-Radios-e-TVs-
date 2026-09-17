@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Nome: RUN-AUTHORITY-REPLICA-CANDIDATE.sh
-# Versão: 1.0 / 2026-09-17
+# Versão: 1.1 / 2026-09-17
 # Owner: Rádio
 # Safety class: candidate-write-isolated
 # Change ID: RADIOPRINCIPAL-NS1-C04
@@ -10,7 +10,7 @@ set -euo pipefail
 REPO='MarcoTuaTelecom/Projeto-StudioSat-Web-Radios-e-TVs-'
 BRANCH='reorg/project-context-v2'
 PATH_REPO='scripts/radioprincipal/candidate/authority-replica-candidate.py'
-EXPECTED_BLOB='f38f77c0ede31b65556b5fd2d5c544f3d544648b'
+EXPECTED_BLOB='16604dd88421950747ad7c66a264b29f8552710c'
 URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/${PATH_REPO}"
 TARGET='/root/authority-replica-candidate.py'
 CAND='/var/lib/studiosat/radio-v2/candidates/radioprincipal-authority-replica'
