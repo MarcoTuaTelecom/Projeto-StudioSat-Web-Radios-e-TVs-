@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Nome: ACTIVATE-RADIOBOSS-NS1-SYNC-NOW.sh
-# Versão: 1.0 / 2026-09-17
+# Versão: 1.1 / 2026-09-17
 # Owner: Rádio
 # Safety class: controlled-production-support
 # Change ID: RADIOPRINCIPAL-NS1-C07
-# Propósito: rearmar recepção NS1, importar playlist atual e manter réplica candidate a cada 10s.
+# Propósito: rearmar recepção NS1, importar playlist atual e manter réplica candidate a cada 5s.
 set -euo pipefail
 
 SYNC='/var/lib/studiosat/radio-v2/radioboss-sync/radioprincipal/current'
@@ -65,10 +65,10 @@ echo 'RUNNER_SYNTAX=OK'
 "$RUNNER" --once
 
 echo
-echo '===== INSTALAR WATCH 10s ====='
+echo '===== INSTALAR WATCH 5s ====='
 cat > "$UNIT" <<EOF
 [Unit]
-Description=Studio Sat RadioPrincipal Authority Replica Candidate 10s
+Description=Studio Sat RadioPrincipal Authority Replica Candidate 5s
 After=network-online.target studiosat-radioboss-sync.service studiosat-media-transfer.service
 Wants=network-online.target
 Requires=studiosat-radioboss-sync.service studiosat-media-transfer.service
@@ -77,7 +77,7 @@ Requires=studiosat-radioboss-sync.service studiosat-media-transfer.service
 Type=simple
 User=root
 Group=root
-ExecStart=$CANDPY --watch --interval 10
+ExecStart=$CANDPY --watch --interval 5
 Restart=always
 RestartSec=2
 NoNewPrivileges=true
@@ -94,7 +94,7 @@ systemctl daemon-reload
 systemctl enable --now studiosat-radioprincipal-authority-candidate.service
 sleep 2
 systemctl is-active --quiet studiosat-radioprincipal-authority-candidate.service
-echo 'AUTHORITY_WATCH_10S=ACTIVE'
+echo 'AUTHORITY_WATCH_5S=ACTIVE'
 
 echo
 echo '===== SNAPSHOT ATUAL ====='
@@ -154,7 +154,7 @@ journalctl -u studiosat-radioprincipal-selector.service --since '3 minutes ago' 
 
 echo
 echo '===== RESULTADO ====='
-echo 'PLAYLIST_SYNC_10S=ENABLED'
+echo 'PLAYLIST_SYNC_5S=ENABLED'
 if [ -n "$ESTAB" ]; then
   echo 'LIVE_LINK=CONNECTED'
 else
