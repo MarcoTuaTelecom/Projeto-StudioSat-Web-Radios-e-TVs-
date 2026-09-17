@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # Nome: authority-replica-candidate.py
-# Versão: 0.1.0-candidate / 2026-09-17
+# Versão: 0.2.0-candidate / 2026-09-17
 # Owner: Rádio | Safety: candidate-write-isolated | Change: RADIOPRINCIPAL-NS1-C04
 # Escreve somente em /var/lib/studiosat/radio-v2/candidates/radioprincipal-authority-replica.
 import argparse,hashlib,json,os,re,sqlite3,sys,tempfile,time,unicodedata
 from datetime import datetime,timezone
 from pathlib import Path
 import xml.etree.ElementTree as ET
-V='0.1.0-candidate'
+V='0.2.0-candidate'
 SYNC='/var/lib/studiosat/radio-v2/radioboss-sync/radioprincipal/current'
 CAND='/var/lib/studiosat/radio-v2/candidates/radioprincipal-authority-replica'
 STORE='/srv/tpsmedia/repository/channels/radioprincipal/mirror-store'
@@ -18,6 +18,14 @@ def base(x): return os.path.basename(str(x or '').replace('\\','/'))
 def sj(x): return json.dumps(x,sort_keys=True,ensure_ascii=False,separators=(',',':'))
 def sh(x): return hashlib.sha256(sj(x).encode()).hexdigest()
 def load(p): return json.loads(Path(p).read_text(encoding='utf-8'))
+def doc_age(d):
+ s=d.get('received_at_utc') if isinstance(d,dict) else None
+ if not s:return None
+ try:
+  x=datetime.fromisoformat(str(s).replace('Z','+00:00'))
+  if x.tzinfo is None:x=x.replace(tzinfo=timezone.utc)
+  return max(0.0,(datetime.now(timezone.utc)-x.astimezone(timezone.utc)).total_seconds())
+ except Exception:return None
 def data(d):
  x=d.get('payload',d) if isinstance(d,dict) else d
  return x.get('data',x) if isinstance(x,dict) else x
@@ -152,7 +160,26 @@ def sync_once(a):
    for e in S:c.execute('insert into schedule_events values(?,?,?,?)',('ssse_'+sh([ssem,e])[:24],sr,e['n'],sj(e['a'])))
   else:sr=c.execute('select id from schedule_revisions where sem=?',(ssem,)).fetchone()[0]
   p=playback(D['playback.json']);cs=R(p['current_ref']) if p['current_ref'] else '';ca='sha256:'+cs if cs else ('source-ref:'+sh(norm(p['current_ref']))[:32] if p['current_ref'] else None);cp=local(a.store,cs);c.execute('insert into playback_checkpoints(captured,received,state,playlistpos,pos_ms,len_ms,current_ref,current_asset_id,current_sha,next_ref,raw) values(?,?,?,?,?,?,?,?,?,?,?)',(t,D['playback.json'].get('received_at_utc'),p['state'],p['playlistpos'],p['pos_ms'],p['len_ms'],p['current_ref'],ca,cs or None,p['next_ref'],sj(p)))
-  avail=sum(bool(local(a.store,x['sha'])) for x in resolved);unres=sum(not bool(x['sha']) for x in resolved);missing=len(resolved)-avail;status='HOT_READY' if resolved and missing==0 and p['current_ref'] and cp else 'NOT_READY';state={'version':V,'updated_at':t,'playlist_revision_id':pr,'program_hint':program,'items':len(resolved),'available':avail,'missing':missing,'unresolved':unres,'schedule_revision_id':sr,'schedule_events':len(S),'playback':{**p,'current_asset_id':ca,'current_sha256':cs,'current_ready':bool(cp)},'heartbeat':data(D['heartbeat.json']),'editorial_noop':not bool(pch or sch),'status':status}
+  avail=sum(bool(local(a.store,x['sha'])) for x in resolved);unres=sum(not bool(x['sha']) for x in resolved);missing=len(resolved)-avail
+  replica_complete=bool(resolved) and missing==0 and unres==0
+  current_ready=bool(cp)
+  hb=data(D['heartbeat.json']); hb=hb if isinstance(hb,dict) else {}
+  hb_age=doc_age(D['heartbeat.json']); pb_age=doc_age(D['playback.json']); pl_age=doc_age(D['playlist.json']); sc_age=doc_age(D['schedule.json']); lm_age=doc_age(D['librarymanifest.json'])
+  source_online=bool(hb.get('online')) and hb_age is not None and hb_age <= a.heartbeat_max_age
+  playback_fresh=pb_age is not None and pb_age <= a.playback_max_age
+  pos=p.get('playlistpos'); cur_match=False; next_match=False
+  try:
+   pos=int(pos)
+   if 0 <= pos < len(resolved): cur_match=bool(p['current_ref']) and norm(resolved[pos]['ref'])==norm(p['current_ref'])
+   if not p['next_ref']: next_match=True
+   elif 0 <= pos+1 < len(resolved): next_match=norm(resolved[pos+1]['ref'])==norm(p['next_ref'])
+  except Exception: pass
+  queue_aligned=cur_match and next_match
+  if replica_complete and current_ready and source_online and playback_fresh and queue_aligned: status='HOT_READY'
+  elif replica_complete and current_ready and (not source_online or not playback_fresh): status='REPLICA_READY_SOURCE_STALE'
+  elif replica_complete and current_ready and source_online and playback_fresh and not queue_aligned: status='SOURCE_ONLINE_QUEUE_DIVERGED'
+  else: status='NOT_READY'
+  state={'version':V,'updated_at':t,'playlist_revision_id':pr,'program_hint':program,'items':len(resolved),'available':avail,'missing':missing,'unresolved':unres,'schedule_revision_id':sr,'schedule_events':len(S),'playback':{**p,'current_asset_id':ca,'current_sha256':cs,'current_ready':current_ready},'heartbeat':hb,'freshness':{'heartbeat_age_sec':hb_age,'playback_age_sec':pb_age,'playlist_age_sec':pl_age,'schedule_age_sec':sc_age,'librarymanifest_age_sec':lm_age,'heartbeat_max_age_sec':a.heartbeat_max_age,'playback_max_age_sec':a.playback_max_age,'source_online':source_online,'playback_fresh':playback_fresh},'readiness':{'replica_complete':replica_complete,'current_item_ready':current_ready,'current_matches_playlistpos':cur_match,'next_matches_playlistpos_plus_1':next_match,'queue_aligned':queue_aligned},'editorial_noop':not bool(pch or sch),'status':status}
   for k,v in [('latest',sj(state)),('status',status),('playlist_revision_id',pr),('schedule_revision_id',sr)]:c.execute('insert into current_state values(?,?,?) on conflict(k) do update set v=excluded.v,updated=excluded.updated',(k,v,t))
   c.execute("update runs set finished=?,status='OK',playlist_changed=?,schedule_changed=? where id=?",(now(),pch,sch,rid));c.commit();tmp=out/'status.json.tmp';tmp.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');os.replace(tmp,out/'status.json');print(f'RESULT=OK STATUS={status} PROGRAM={program!r} PLAYLIST_REV={pr} ITEMS={len(resolved)} AVAILABLE={avail} MISSING={missing} UNRESOLVED={unres} PLAYLIST_CHANGED={pch} SCHEDULE_CHANGED={sch} CURRENT={base(p["current_ref"])} POS_MS={p["pos_ms"]} DB={a.db or out/"replica.sqlite3"}');return state
  except Exception as e:
@@ -166,9 +193,9 @@ def selftest():
   r=Path(td);s=r/'s';o=r/'o';st=r/'store';s.mkdir();st.mkdir();blob=b'abc';sha=hashlib.sha256(blob).hexdigest();(st/(sha+'.mp3')).write_bytes(blob)
   def w(n,x):(s/n).write_text(json.dumps(x),encoding='utf-8')
   pl='<Playlist NAME="Tarde Studio Sat Principal"><TRACK FILENAME="C:\\M\\A.mp3"/><TRACK FILENAME="C:\\M\\B.mp3"/></Playlist>';wrap=lambda k,d,rev=1:{'kind':k,'revision':rev,'received_at_utc':now(),'payload':{'data':d}}
-  w('playlist.json',{'kind':'playlist','revision':1,'received_at_utc':now(),'payload':{'xml':pl}});w('schedule.json',wrap('schedule',{'events':[{'time':'17:00:00'}]}));w('librarymanifest.json',wrap('librarymanifest',{'files':[{'sha256':sha,'path':'C:\\M\\A.mp3'},{'sha256':'f'*64,'path':'C:\\M\\B.mp3'}]}));w('playback.json',wrap('playback',{'state':'play','playlistpos':0,'pos_ms':1000,'len_ms':10000,'current':{'FILENAME':'C:\\M\\A.mp3'},'next':{'FILENAME':'C:\\M\\B.mp3'}}));w('heartbeat.json',wrap('heartbeat',{'online':True}));a=argparse.Namespace(sync=str(s),out=str(o),db=None,index=str(r/'none'),store=str(st),watch=False,interval=10);x=sync_once(a);assert x['items']==2 and x['available']==1 and x['missing']==1;p=load(s/'playlist.json');p['revision']=2;p['received_at_utc']=now();w('playlist.json',p);y=sync_once(a);assert y['playlist_revision_id']==x['playlist_revision_id'] and y['editorial_noop'];p['payload']['xml']=pl.replace('A.mp3"/><TRACK FILENAME="C:\\M\\B','B.mp3"/><TRACK FILENAME="C:\\M\\A');w('playlist.json',p);z=sync_once(a);assert z['playlist_revision_id']!=x['playlist_revision_id'];print('SELF_TEST=PASS')
+  w('playlist.json',{'kind':'playlist','revision':1,'received_at_utc':now(),'payload':{'xml':pl}});w('schedule.json',wrap('schedule',{'events':[{'time':'17:00:00'}]}));w('librarymanifest.json',wrap('librarymanifest',{'files':[{'sha256':sha,'path':'C:\\M\\A.mp3'},{'sha256':'f'*64,'path':'C:\\M\\B.mp3'}]}));w('playback.json',wrap('playback',{'state':'play','playlistpos':0,'pos_ms':1000,'len_ms':10000,'current':{'FILENAME':'C:\\M\\A.mp3'},'next':{'FILENAME':'C:\\M\\B.mp3'}}));w('heartbeat.json',wrap('heartbeat',{'online':True}));a=argparse.Namespace(sync=str(s),out=str(o),db=None,index=str(r/'none'),store=str(st),watch=False,interval=10,heartbeat_max_age=30,playback_max_age=30);x=sync_once(a);assert x['items']==2 and x['available']==1 and x['missing']==1;p=load(s/'playlist.json');p['revision']=2;p['received_at_utc']=now();w('playlist.json',p);y=sync_once(a);assert y['playlist_revision_id']==x['playlist_revision_id'] and y['editorial_noop'];p['payload']['xml']=pl.replace('A.mp3"/><TRACK FILENAME="C:\\M\\B','B.mp3"/><TRACK FILENAME="C:\\M\\A');w('playlist.json',p);z=sync_once(a);assert z['playlist_revision_id']!=x['playlist_revision_id'];print('SELF_TEST=PASS')
 def main():
- p=argparse.ArgumentParser();p.add_argument('--sync',default=SYNC);p.add_argument('--out',default=CAND);p.add_argument('--db');p.add_argument('--index',default=INDEX);p.add_argument('--store',default=STORE);p.add_argument('--watch',action='store_true');p.add_argument('--interval',type=float,default=10);p.add_argument('--self-test',action='store_true');a=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--sync',default=SYNC);p.add_argument('--out',default=CAND);p.add_argument('--db');p.add_argument('--index',default=INDEX);p.add_argument('--store',default=STORE);p.add_argument('--watch',action='store_true');p.add_argument('--interval',type=float,default=10);p.add_argument('--heartbeat-max-age',type=float,default=30);p.add_argument('--playback-max-age',type=float,default=30);p.add_argument('--self-test',action='store_true');a=p.parse_args()
  if a.self_test:selftest();return 0
  while True:
   try:sync_once(a)
