@@ -53,9 +53,12 @@ def manifest(doc):
    if k.casefold() in ('sha256','sha','hash_sha256','hash') and isinstance(v,str) and re.fullmatch(r'[0-9a-fA-F]{64}',v.strip()): sha=v.strip().lower();break
   if not sha: continue
   for k,v in d.items():
-   if isinstance(v,str) and any(t in k.casefold() for t in ('path','file','source','name','fn')) and v.strip():
-    q=(sha,norm(v));
-    if q not in seen: seen.add(q);out.append((sha,v.strip()))
+   if not any(t in k.casefold() for t in ('path','file','source','name','fn')): continue
+   vals=[v] if isinstance(v,str) else (v if isinstance(v,list) else [])
+   for z in vals:
+    if isinstance(z,str) and z.strip():
+     q=(sha,norm(z));
+     if q not in seen: seen.add(q);out.append((sha,z.strip()))
  return out
 def playlist(doc):
  x=xmlstr(doc,'Playlist')
@@ -74,9 +77,9 @@ def playlist(doc):
    for a,b in x.items():r(b,a)
  r(data(doc))
  if not lists:return {},[],'unknown'
- _,_,k,L=max(lists);return {'source_key':k},[{'n':i,'ref':pathval(z),'a':z} for i,z in enumerate(L)],'json'
+ _,_,k,L=max(lists,key=lambda z:(z[0],z[1]));return {'source_key':k},[{'n':i,'ref':pathval(z),'a':z} for i,z in enumerate(L)],'json'
 def schedule(doc):
- x=xmlstr(doc); out=[]
+ x=xmlstr(doc,'Schedule') or xmlstr(doc); out=[]
  if x:
   try:
    root=ET.fromstring(x);out=[{'n':i,'a':dict(e.attrib)} for i,e in enumerate(root.findall('.//item'))]
