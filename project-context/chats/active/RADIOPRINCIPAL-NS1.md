@@ -251,3 +251,28 @@ Conclusão arquitetural C06:
    - publicar somente em path de teste até passar gates.
 
 Nenhum cutover está autorizado neste estágio.
+
+
+## Registro C08 — túnel persistente RadioBOSS -> NS1 confirmado
+
+Em 2026-09-17 ~20:09 America/Sao_Paulo, o túnel persistente dedicado do Windows da emissora para o Harbor do NS1 foi validado com sucesso.
+
+Evidências do Windows:
+- tarefa agendada `StudioSat-RadioBOSS-NS1-Tunnel` instalada;
+- chave privada protegida com ACL exclusiva de `NT AUTHORITY\SYSTEM`;
+- `127.0.0.1:18005` em estado `Listen`;
+- `Test-NetConnection 127.0.0.1 -Port 18005` retornou `TcpTestSucceeded=True`;
+- watchdog iniciado e mantendo o processo SSH em background.
+
+Evidências do NS1:
+- conta dedicada `studiosat-rb-tunnel` ativa para autenticação por chave;
+- `authorized_keys` com permissões corretas;
+- Harbor Liquidsoap escutando em `127.0.0.1:18005`.
+
+Regra operacional fixada:
+- operador do estúdio não abre SSH nem PowerShell;
+- o túnel sobe no boot do Windows e se reconecta automaticamente;
+- RadioBOSS continua configurado para `127.0.0.1:18005` e deve reconectar automaticamente ao iniciar/dar play;
+- conta SSH dedicada só pode encaminhar para `127.0.0.1:18005` no NS1.
+
+Próximo gate: confirmar no NS1 a conexão TCP ativa do RadioBOSS no Harbor, metadados chegando e selector escolhendo `radioprincipal_rb_harbor`; depois seguir para transferência automática de assets faltantes da playlist em <=10s.
