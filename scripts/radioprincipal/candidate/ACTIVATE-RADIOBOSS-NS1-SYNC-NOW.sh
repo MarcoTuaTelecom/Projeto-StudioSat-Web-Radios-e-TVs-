@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Nome: ACTIVATE-RADIOBOSS-NS1-SYNC-NOW.sh
-# Versão: 1.1 / 2026-09-17
+# Versão: 1.2 / 2026-09-17
 # Owner: Rádio
 # Safety class: controlled-production-support
 # Change ID: RADIOPRINCIPAL-NS1-C07
@@ -10,7 +10,7 @@ set -euo pipefail
 SYNC='/var/lib/studiosat/radio-v2/radioboss-sync/radioprincipal/current'
 CAND='/var/lib/studiosat/radio-v2/candidates/radioprincipal-authority-replica'
 RUNNER='/root/RUN-AUTHORITY-REPLICA-CANDIDATE.sh'
-CANDPY='/root/authority-replica-candidate.py'
+CANDPY='/opt/studiosat/radio-v2/radioprincipal-authority/authority-replica-candidate.py'
 UNIT='/etc/systemd/system/studiosat-radioprincipal-authority-candidate.service'
 RUNNER_URL='https://raw.githubusercontent.com/MarcoTuaTelecom/Projeto-StudioSat-Web-Radios-e-TVs-/reorg/project-context-v2/scripts/radioprincipal/candidate/RUN-AUTHORITY-REPLICA-CANDIDATE.sh'
 
@@ -66,6 +66,9 @@ echo 'RUNNER_SYNTAX=OK'
 
 echo
 echo '===== INSTALAR WATCH 5s ====='
+install -d -m 0755 /opt/studiosat/radio-v2/radioprincipal-authority
+install -m 0755 /root/authority-replica-candidate.py "$CANDPY"
+echo "CANDIDATE_SERVICE_BINARY=$CANDPY"
 cat > "$UNIT" <<EOF
 [Unit]
 Description=Studio Sat RadioPrincipal Authority Replica Candidate 5s
