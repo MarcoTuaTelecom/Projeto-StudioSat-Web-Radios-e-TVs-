@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Nome: RUN-AUTHORITY-REPLICA-CANDIDATE.sh
-# Versão: 1.1 / 2026-09-17
+# Versão: 1.2 / 2026-09-17
 # Owner: Rádio
 # Safety class: candidate-write-isolated
 # Change ID: RADIOPRINCIPAL-NS1-C04
@@ -10,7 +10,7 @@ set -euo pipefail
 REPO='MarcoTuaTelecom/Projeto-StudioSat-Web-Radios-e-TVs-'
 BRANCH='reorg/project-context-v2'
 PATH_REPO='scripts/radioprincipal/candidate/authority-replica-candidate.py'
-EXPECTED_BLOB='16604dd88421950747ad7c66a264b29f8552710c'
+EXPECTED_BLOB='c7a6285585ed11f0508bfc10a2a0bdac2adbd1b0'
 URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/${PATH_REPO}"
 TARGET='/root/authority-replica-candidate.py'
 CAND='/var/lib/studiosat/radio-v2/candidates/radioprincipal-authority-replica'
@@ -65,9 +65,9 @@ case "$MODE" in
     ;;
   --watch)
     fetch_validate
-    echo 'RUN_MODE=WATCH INTERVAL=10s'
+    echo 'RUN_MODE=WATCH INTERVAL=5s'
     echo 'CTRL+C encerra somente o candidate; produção não é alterada.'
-    exec "$TARGET" --watch --interval 10
+    exec "$TARGET" --watch --interval 5
     ;;
   --status)
     show_status
