@@ -47,18 +47,96 @@ Primeiro deve reconfirmar, somente leitura:
 7. papel atual de Harbor e selector;
 8. diferença entre caminho público, shadow e teste.
 
+## Baseline somente leitura — ciclo C02
+
+### Fontes examinadas
+
+- `XRAY-RADIOPRINCIPAL-NS1-20260916T183344Z.txt`
+- `XRAY-RADIOPRINCIPAL-NS1-20260916T192808Z.txt`
+- `XRAY-RADIOPRINCIPAL-NS1-V2-20260916T211627Z.txt`
+- `STUDIOSAT-FORENSIC-NS1-20260917T023826Z.tar.gz`
+
+A evidência mais recente fornecida foi coletada a partir de `2026-09-17T02:38:26Z`. Ela é posterior aos XRAYs, mas não deve ser tratada como estado vivo no momento de uma futura mudança sem nova reconfirmação read-only.
+
+Nenhuma mudança de produção, cutover, restart global ou alteração destrutiva foi aplicada nesta etapa.
+
+### Classificação comparada ao ACTIVE STATE anterior
+
+| Ponto | Classe | Evidência / interpretação |
+|---|---|---|
+| RadioBOSS como autoridade editorial/controle | `CONFIRMADO` | `playlist.json`, `schedule.json`, `librarymanifest.json`, `playback.json` e heartbeat continuavam sendo recebidos. No forense mais recente: playlist rev. 489, schedule rev. 8997, librarymanifest rev. 35 e playback em `play`. |
+| `radioprincipal-rb` como entrada efetiva de áudio de produção | `MUDOU` | O path MediaMTX `radioprincipal-rb` estava offline. O áudio do RadioBOSS entrava pelo Harbor Liquidsoap local em `127.0.0.1:18005`. |
+| Harbor 18005 | `CONFIRMADO` | É a entrada primária do RadioBOSS no selector atual. O selector recebe `input.harbor` e prioriza essa fonte. |
+| `radioprincipal-ns1` | `CONFIRMADO` | Online/ready; recebe o playout do `mirror-playout.py` e é lido pelo selector como fallback. |
+| `radioprincipal` público | `CONFIRMADO` | Online/ready; é a saída RTMP publicada pelo selector Liquidsoap. |
+| `radioprincipal-test` | `CONFIRMADO` | Continua sendo superfície de ensaio. Estava offline no forense; houve publicações temporárias de teste anteriormente. |
+| Selector | `CONFIRMADO` | Serviço ativo. Configuração efetiva: `fallback [RadioBOSS/Harbor, NS1 shadow, blank de segurança]` e saída para `radioprincipal`. Houve microtrocas rápidas Harbor→NS1→Harbor, portanto estabilidade deve continuar observada. |
+| Bridge `playback.json` | `CONFIRMADO` | `control-bridge-v3.2.py` copia `radioboss-sync/.../playback.json` para `/run/studiosat-radioprincipal-v8-control/playback.json`; XRAY V2 mostrou origem e bridge frescos/coerentes. O serviço seguia ativo no forense. |
+| Shadow usando `playback.json` para índice/posição | `PENDENTE` | Ainda não ocorre. `mirror-playout.py` continua lendo `state/radioboss-live.json` e `matched_index`. |
+| `radioboss-live.json` / monitor | `CONFIRMADO` | Continua em uso pelo shadow. No forense mais recente estava `connected=true`, porém `matched_index=null`, enquanto o mirror runtime seguia em modo `ns1-continuous`. |
+| Mirror controller/timer | `CONFIRMADO` | Timer ativo com ciclo ~30 s e controller one-shot finalizando com sucesso. |
+| Idempotência do mirror controller | `PENDENTE` | O controller continuava emitindo `MIRROR_SYNC_CHANGED=SIM` e criando nova geração a cada ~30 s mesmo com 156/156/0 estável. O código inclui hashes dos arquivos-envelope completos de playlist/manifest/schedule na assinatura; esses envelopes mudam por campos de recepção, causando churn de geração mesmo sem mudança editorial equivalente. |
+| Mídia disponível/missing | `MUDOU` | XRAY V2 terminou em 158 tracks / 156 disponíveis / 2 missing. No forense a playlist caiu para 156 tracks / 156 disponíveis / 0 missing. `NEW_MEDIA_COPIED=0`; portanto não há evidência de que os missing foram resolvidos por cópia de mídia — a composição da playlist também mudou. |
+| `mirror-runtime.json` | `CONFIRMADO` | Estava fresco no forense, geração `rbcanon-20260917T023713Z-dbbfd680ba02`, modo `ns1-continuous`. |
+| V8 production runtime | `OBSOLETO` como estado vivo | `v8-production-runtime.json` estava parado desde `2026-09-16T19:11:35Z`, modo `ns1-autonomous`, reason `shutdown`. |
+| `studiosat-radioprincipal-v8-production.service` | `OBSOLETO` como caminho de produção atual | Serviço disabled/inactive e configurado para publicar em `radioprincipal-test`, não em `radioprincipal`. Não deve ser reativado como se fosse a produção vigente. |
+| `studiosat-radioprincipal-v8-stage.service` | `OBSOLETO` como runtime vivo | Inactive; runtime antigo desde aproximadamente `19:16Z` de 16/09. Pode permanecer como artefato de laboratório/histórico até classificação definitiva. |
+| `studiosat-radioprincipal-v8-live-ingress.service` | `OBSOLETO` no fluxo atual | Disabled/inactive. O Harbor em produção pertence hoje ao selector, não a esse ingress V8 separado. |
+| `tps-radioprincipal-playout.service` e `tps-radioprincipal-failover.service` | `OBSOLETO` no fluxo atual | Ambos permaneciam masked/inactive. |
+| Estado vivo no momento de qualquer próxima mudança | `PENDENTE` | A coleta forense mais recente é evidência histórica de 17/09 02:38 UTC. Antes de editar produção é obrigatório repetir o baseline read-only. |
+
+## Arquitetura efetiva observada na última evidência
+
+```text
+RadioBOSS
+  ├─ snapshots/controle HTTP -> radioboss-sync/current/{playlist,schedule,librarymanifest,playback,heartbeat}.json
+  └─ áudio LIVE -> túnel/Harbor 127.0.0.1:18005
+                         |
+                         v
+                 Liquidsoap selector
+                 prioridade 1: Harbor RadioBOSS
+                 prioridade 2: RTMP radioprincipal-ns1
+                 prioridade 3: blank de segurança
+                         |
+                         v
+                 RTMP radioprincipal (público)
+
+RadioBOSS snapshots -> mirror-controller (timer ~30s)
+                         |
+                         v
+                generations/media-map
+                         |
+                         v
+               mirror-playout.py
+       [ainda guiado por radioboss-live/matched_index]
+                         |
+                         v
+              RTMP radioprincipal-ns1
+```
+
+O bridge V8 de `playback.json` está operacional, mas não está no loop de controle do shadow atualmente ativo.
+
+## Próximo passo exato comprovado
+
+1. Repetir **agora** um baseline somente leitura equivalente ao XRAY/forense, sem comandos de mudança, para confirmar que a arquitetura acima continua viva.
+2. Se o baseline confirmar o mesmo estado, corrigir primeiro a **idempotência/assinatura do mirror-controller** em candidate, sem tocar no selector/Harbor/caminho público. O objetivo é parar gerações sintéticas quando não houve mudança editorial/material real.
+3. Validar controller em dry-run/laboratório e confirmar `MIRROR_SYNC_CHANGED=NAO` quando playlist/manifest/schedule semanticamente não mudarem.
+4. Depois preparar, também como candidate, a evolução do `mirror-playout.py` para usar `playback.json` como autoridade de índice/posição do shadow, retirando a dependência de `matched_index` como mecanismo principal de sincronismo.
+5. Somente após shadow estável e validado reabrir scheduler/hora certa, ensaio de failover e qualquer cutover.
+
+## Fatos que não devem ser reabertos sem nova evidência
+
+- O caminho público observado é `radioprincipal`, publicado pelo selector.
+- O shadow observado é `radioprincipal-ns1`.
+- O RadioBOSS LIVE observado entra por Harbor `18005`, não pelo path MediaMTX `radioprincipal-rb`.
+- `radioprincipal-test` é superfície de ensaio, não produção.
+- V8 production/stage não estavam executando como produção na última evidência.
+- O bridge de playback existe e funciona, mas o shadow atual ainda não o usa como autoridade de sincronismo.
+- O controller apresenta churn de gerações e isso deve ser resolvido antes de tratá-lo como canônico estável.
+
 ## Próximo passo exato
 
-Produzir um único baseline atual da Rádio Principal, sem alterar tráfego, e comparar com este ACTIVE STATE.
-
-Depois classificar cada item como:
-
-- `CONFIRMADO`;
-- `MUDOU`;
-- `OBSOLETO`;
-- `PENDENTE`.
-
-Somente depois continuar correções, scheduler, shadow ou cutover.
+O próximo passo operacional permanece **read-only**: gerar uma nova coleta atual e compará-la com este baseline C02. Nenhuma mudança em produção deve ocorrer antes dessa reconfirmação.
 
 ## Nome recomendado para a próxima conversa
 
