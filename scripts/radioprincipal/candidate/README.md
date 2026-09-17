@@ -42,6 +42,17 @@ A cópia executável é instalada em `/root/authority-replica-candidate.py`.
 - asset ausente: cria `transfer_job` `QUEUED`; este candidate ainda **não transfere** o arquivo;
 - `--watch --interval 10` reconcilia no máximo a cada 10 s.
 
+## Testes já executados antes da liberação
+
+- `python3 -m py_compile`: OK;
+- self-test XML: OK;
+- envelope/timestamp alterado sem alteração semântica: `PLAYLIST_CHANGED=0`;
+- troca real de ordem: nova `playlist_revision_id`;
+- asset ausente: `transfer_job` criado;
+- playlist em JSON: OK;
+- `librarymanifest` com lista de caminhos: OK;
+- runner em fluxo funcional local: valida blob, compila, executa self-test e instala a cópia validada.
+
 ## Primeira execução
 
 Como root:
@@ -58,10 +69,10 @@ Depois devolver toda a saída do terminal e, se criado, `/var/lib/studiosat/radi
 
 ## Integridade
 
-- candidate Git blob: `e0533ae66277ab773974addd0a03c422f8f7e70d`
-- runner Git blob: `ed3057bf9e93a66e047d8bbab739756a26652c2f`
-- candidate SHA256 testado localmente: `297fafcdfe153a4112636b757471c572d922f49c94798890f877665d0b27e494`
-- runner SHA256 testado localmente: `99f8907f590ac5c135b7dc42ba1466108bafba9a4ccd727c52bc76b53d4f42c4`
+- candidate Git blob: `f38f77c0ede31b65556b5fd2d5c544f3d544648b`
+- runner Git blob: `a8240c60c88345c31398351a8e4ad6d949e776e4`
+- candidate SHA256 testado localmente: `f7d6f3f7a934aa0d72696f2717ada11d5e861e37ef2e95a01106f2298c180e07`
+- runner SHA256 testado localmente: `f42b0e2026c9b5aab363e4760640d2664d384330852107625343d8a723fdf53f`
 
 ## Rollback
 
