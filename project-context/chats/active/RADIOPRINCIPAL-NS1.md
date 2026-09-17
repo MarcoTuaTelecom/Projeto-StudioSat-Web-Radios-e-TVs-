@@ -212,3 +212,42 @@ Correção C05:
 Regra incorporada: o NS1 não pode manter indefinidamente o último programa recebido. Se a grade previamente sincronizada indicar mudança às 19:00, o NS1 deve executar a nova programação pelo relógio local mesmo com o RadioBOSS desconectado, desde que grade e assets tenham sido previamente validados.
 
 Próximo passo exato: executar somente o probe read-only de grade futura para inspecionar `playlist_definitions` e a estrutura real de `schedule.json`; localizar como programas futuros e transições de horário são representados antes de implementar o executor autônomo.
+
+
+## Registro C06 — Noite ativa no RadioBOSS, candidate enxerga grade, produção NS1 ainda legada
+
+Evidência de 2026-09-17 aproximadamente 19:15–19:18 America/Sao_Paulo:
+
+- RadioBOSS local estava com a aba/programação **Noite Studio Sat** ativa.
+- UI mostrou 68 faixas da programação noturna.
+- Snapshot machine-readable recebido no NS1 continha 69 itens porque havia uma inserção virtual de hora certa `saytime=...` entre faixas.
+- Snapshot atual:
+  - playlist rev. 938, age ~9,7 s;
+  - schedule rev. 19577, age ~0,16 s;
+  - playback age ~0,52 s;
+  - heartbeat age ~7,8 s, `online=true`;
+  - librarymanifest age ~8,6 s.
+- Playback atual recebido: Eric Clapton — Change The World; próximo item: `(Time Announcement)`; depois Natalie Imbruglia — Torn.
+- Playlist XML atual aponta para `H:\MUSICAS\003 - Noite Na Studio Sat\...`.
+- Candidate v0.2 importou 69 itens, porém apenas 7 foram resolvidos como disponíveis; 62 ficaram unresolved/missing pelo modelo de resolução atual.
+- `current_ready=false`, `queue_aligned=false`, status `NOT_READY`.
+- `librarymanifest.data.playlist_definitions` continha somente uma definição originada do scheduler (`Seg_Sex_0730AS1200.m3u8`), não uma grade completa de programas futuros.
+- O schedule atual contém 1 evento e a playlist efetiva recebeu a hora certa como item virtual `SCHEDULE_NP`.
+
+Conclusão arquitetural C06:
+
+1. O canal de controle RadioBOSS -> NS1 está vivo e atual.
+2. O RadioBOSS já executa lógica editorial real (mudança Tarde -> Noite, scheduler e hora certa).
+3. O candidate consegue observar/importar a playlist efetiva, mas ainda não possui resolução completa de assets nem executor de comandos virtuais como `saytime`.
+4. O playout de produção `radioprincipal-ns1` continua sendo o `mirror-playout.py` legado; o candidate não controla produção.
+5. Portanto qualquer fallback público para o NS1 ainda pode tocar programação antiga/contínua sem obedecer mudança de programa, hora certa e demais eventos.
+6. A próxima etapa deixa de ser apenas “sincronizar playlist”: é construir o **Studio Sat Execution Engine candidate**, capaz de:
+   - interpretar a playlist efetiva do RadioBOSS;
+   - resolver/canonicalizar assets;
+   - executar itens virtuais `saytime`;
+   - obedecer schedule e transições de programa;
+   - persistir grade futura quando disponível;
+   - manter posição/checkpoint;
+   - publicar somente em path de teste até passar gates.
+
+Nenhum cutover está autorizado neste estágio.
