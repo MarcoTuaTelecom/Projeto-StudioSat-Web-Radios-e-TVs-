@@ -604,3 +604,45 @@ C22 preparado:
 - não reinicia áudio público.
 
 Importante: C22 corrige a sincronização da biblioteca humana, mas ainda não troca o shadow público legado. A troca do fallback só será feita depois de um V2 shadow isolado ser validado.
+
+
+## Registro C24/C25 — automação local reduzida a um único agente oculto
+
+Conclusão após C21R/C22:
+- C21R restaurou listener local 18005 no Windows e TCP local=True, porém o log ainda registrou repetidos `connect failed: Connection refused` para o destino NS1 em alguns momentos; portanto a estabilidade Harbor continua P1.
+- C22 apenas reconciliou o que o NS1 já conhecia: Manhã 27, Tarde 85, Noite 69. Isso não equivale à playlist da manhã mostrada no RadioBOSS (~166 faixas). Logo, o mecanismo correto precisa buscar a lista autoritativa e puxar os arquivos ausentes diretamente do PC.
+
+Nova arquitetura:
+- PC local deve executar somente RadioBOSS + um único agente oculto Studio Sat em background;
+- o agente sobe automaticamente no boot como SYSTEM;
+- ele usa um túnel SSH restrito para um bridge localhost no NS1;
+- consulta a playlist efetiva recebida pelo NS1;
+- prioriza current/next;
+- calcula SHA256 local com cache;
+- verifica deduplicação no NS1;
+- registra source path quando asset já existe;
+- faz upload quando ausente;
+- repete a cada 5s;
+- não exige janela/terminal/aplicativo visível.
+
+C24 NS1 edge bridge PREPARADO:
+- `scripts/radioprincipal/v2/edge-bridge.py`
+  - commit inicial `eb184e7b660c4d740125a5341d701ff0c5bf9c9b`
+  - exists/register enhancement `ae35e647add36928f7806a0dfa1c81f5b51f3dc7`
+- `scripts/radioprincipal/v2/C24-INSTALL-NS1-EDGE-BRIDGE.sh`
+  - commit `3a8037c5c07779a642353b5d36441b2e5a2ae055`
+- bridge bind: 127.0.0.1:8796;
+- SSH PermitOpen passa a permitir 18005 e 8796;
+- não reinicia selector/shadow/MediaMTX/Nginx/Harbor.
+
+C25 Windows automatic agent PREPARADO:
+- `scripts/radioprincipal/v2/StudioSat-RadioPrincipal-Agent.ps1`
+  - commit `71c37252ab46913f82a4c05104c4fe48148a1415`
+- `scripts/radioprincipal/v2/C25-INSTALL-WINDOWS-AUTOMATIC-AGENT.ps1`
+  - commit `e07b3eba1d5dbcbed3cb0251553f3e502737e6ad`
+- task: `StudioSat-RadioPrincipal-Agent`;
+- startup: ONSTART, SYSTEM, hidden;
+- bridge local: 127.0.0.1:18796 -> NS1 127.0.0.1:8796;
+- temporariamente NÃO substitui o túnel de áudio 18005 até validar uploads; depois haverá consolidação final em um único agente/túnel.
+
+Regra: não declarar C24/C25 instalados antes de evidência de execução.
