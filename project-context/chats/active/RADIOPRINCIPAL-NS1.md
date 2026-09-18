@@ -1626,3 +1626,44 @@ Pre-tests completed before user execution:
 - installer static assertions PASS.
 
 Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
+
+
+## V5.1 reconstruction — existing HTTPS control bridge + NS1 media only
+
+V5 server-only execution at 2026-09-18 22:13 UTC stopped before mutation:
+- public current audio READY;
+- cached `radioboss-sync/current/playback.json` age was ~15311s;
+- current payload still showed playlistpos 21 / Elis Regina;
+- installer aborted with `FATAL=RADIOBOSS_CONTROL_NOT_FRESH`.
+
+Important recovered architecture evidence from earlier NS1 X-ray:
+- `studiosat-radioprincipal-v8-control-bridge.service` is an existing enabled NS1 service;
+- it runs `/opt/studiosat/radio-v2/radioprincipal-v8/control-bridge-v3.2.py`;
+- it writes fresh playback to `/run/studiosat-radioprincipal-v8-control/playback.json`;
+- prior evidence showed that file at AGE_SECONDS=0.082 while canonical `radioboss-sync/current/playback.json` was older;
+- therefore the correct dynamic control source is the existing V8 control bridge, while playlist/librarymanifest remain static/versioned snapshots.
+
+V5.1 rebuild:
+- uses `/run/studiosat-radioprincipal-v8-control/playback.json` as primary current/position source;
+- uses old radioboss-sync playback only as fallback;
+- continues using existing playlist/librarymanifest snapshots;
+- resolves NS1 media from human folders + media-transfer SQLite mappings;
+- publishes directly to public `radioprincipal`;
+- no PC installation;
+- no live audio tunnel required;
+- after successful cutover disables NS1 Icecast/old shadow/old cores;
+- server-side denies the dedicated `studiosat-rb-tunnel` SSH account so any leftover PC tunnel becomes inert without touching the PC.
+
+Pre-tests before user execution:
+- V5.1 Python compile PASS;
+- V5.1 built-in selftest PASS, including selection of fresh control-bridge playback over stale sync playback;
+- installer bash syntax PASS;
+- installer policy checks PASS;
+- previous V5 runtime playout test PASS with one realtime decoder start and AAC 48k stereo output;
+- previous full media-DB fixture PASS with 163/163 physical items resolved.
+
+Artifacts:
+- engine V5.1 commit `3f1b32c6a57aa0dea82e1b15abfdb8338b10fd3c`;
+- installer V5.1 commit `a90aa605a3779612a7ed92790251fb028677aa87`.
+
+Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
