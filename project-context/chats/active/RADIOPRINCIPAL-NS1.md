@@ -1096,3 +1096,41 @@ Artifacts:
   - commit `81b2f5b46900de4ec696bba333c0d3767a936185`
 - `docs/10-radio/RESET02B-THEMATIC-MEDIA-INVENTORY.md`
   - commit `5ebf7bc7e4b41052d0d76dde601de8507571dd22`.
+
+
+## RESET-03 — real root restore points discovered
+
+User supplied full /root listing and explicitly requested searching real restore points and prioritizing putting Rádio Principal on air.
+
+Critical items found in /root:
+- `STUDIOSAT-FORENSIC-NS1-20260917T023826Z` plus tar.gz and sha256;
+- `STUDIOSAT-NS1-CLEANUP-BACKUP-20260916-085221`;
+- `studiosat-radioprincipal-mirror-v3-backup-20260916T000819Z`;
+- `studiosat-radioprincipal-v2-backup-20260916-075244`;
+- `studiosat-principal-FIND-RESTORE-v3.sh`;
+- `studiosat-principal-GO-NOW.sh`;
+- `STUDIOSAT-RADIOPRINCIPAL-LIVE-PROOF-20260916T202231Z.txt`;
+- `STUDIOSAT-RADIOPRINCIPAL-V8-LIVE-FINAL-V3.1-20260916T204241Z.txt`.
+
+Conclusion:
+RESET-02 searched too narrowly and did not inspect these root-level Radio Principal backup/forensic directories.
+
+Emergency strategy:
+- do not restore thematic playlists blindly;
+- first restore a validated Radio Principal selector from the real 16/17 backups;
+- require both RadioBOSS Harbor and `radioprincipal-ns1` fallback definitions;
+- require fallback order RadioBOSS -> NS1 shadow;
+- require existing `radioprincipal-ns1` RTMP ready;
+- validate candidate with `liquidsoap --check`;
+- backup current selector;
+- restart only selector;
+- verify public RTMP/HLS;
+- rollback automatically if public stream does not return.
+
+Artifact:
+- `scripts/radioprincipal/reset/RESET03-RESTORE-REAL-ROOT-BACKUP.sh`
+  commit `bb5ee2bdea65cd58e66637d2db7c6403cd05ab53`;
+- doc `docs/10-radio/RESET03-RESTORE-REAL-ROOT-BACKUP.md`
+  commit `9abded575305a592dedb4e6761e054fcca25a55d`.
+
+Status: PREPARED IN GITHUB, not yet executed.
