@@ -1514,3 +1514,48 @@ Artifacts:
 - V4.1 installer commit `281e2e937a77dcc0be941aa4c2fffeb0d1f7c742`.
 
 Status: V4.1 TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
+
+
+## V4.1 blocked on wrong freshness rule / V4.2 pre-tested
+
+V4.1 execution at 2026-09-18 21:45 UTC stopped BEFORE any shadow mutation because it treated playlist.json mtime as a liveness signal:
+- PLAYLIST_JSON_AGE_SEC=13616.49
+- FATAL=RADIOBOSS_CONTROL_STALE_PLAYLIST_JSON
+
+This gate was invalid. playlist.json and librarymanifest.json are versioned/change-driven snapshots and can legitimately retain an old mtime while RadioBOSS live/playback continues. Dynamic liveness must be based on actual live PCM plus playback/heartbeat freshness.
+
+V4.2:
+- first proves RadioBOSS audio is actually reaching Icecast;
+- proves V3.2 public selected_source=live and live_bytes are increasing;
+- proves public RTMP is ready;
+- validates playlist/librarymanifest by parseable content, station, revision/metadata, NOT by mtime;
+- requires playback.json dynamic control <=30s and current filename present;
+- engine preserves human/symlink aliases;
+- engine resolves by exact normalized filename, librarymanifest SHA bridge, then conservative fuzzy match;
+- next item is bound to RadioBOSS playback.next, not silently skipped to the next available local item;
+- current/next local files must resolve before shadow cutover;
+- coverage gate remains >=90%;
+- only canonical shadow service is replaced; public V3.2 remains live.
+
+Pre-tests executed in isolated sandbox:
+- Python compile PASS;
+- installer bash -n PASS;
+- built-in selftest PASS;
+- full synthetic fixture matching production dimensions:
+  - 165 queue items;
+  - 163 physical media;
+  - 2 virtual;
+  - 163/163 resolved;
+  - missing 0;
+  - coverage 100%;
+  - current READY;
+  - next READY;
+  - manifest-SHA-only current successfully resolved;
+  - static playlist/librarymanifest deliberately aged 4h did not affect engine resolution.
+- FULL_165_FIXTURE=PASS.
+
+Artifacts:
+- V4.2 engine latest commit: `0572c8f54e17c12c6b2c9f9416a6bc8dd910f980`;
+- V4.2 installer commit: `90aefc99144e901e722ae3cd405e44ea536f4745`.
+
+Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
