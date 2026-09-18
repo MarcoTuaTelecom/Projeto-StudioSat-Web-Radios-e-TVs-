@@ -372,6 +372,22 @@ def find_queue_current(queue,pb):
         return queue[pos]
     return None
 
+def find_queue_next(queue,pb,cur_index):
+    n=pb.get("next") or {}
+    fn=str(n.get("FILENAME") or n.get("filename") or "")
+    fnk=norm_key(fn)
+    if fnk and cur_index is not None:
+        for j in range(cur_index+1,min(len(queue),cur_index+6)):
+            if norm_key(queue[j].get("source_path"))==fnk:
+                return queue[j]
+    if fnk:
+        for q in queue:
+            if norm_key(q.get("source_path"))==fnk:
+                return q
+    if cur_index is not None and cur_index+1<len(queue):
+        return queue[cur_index+1]
+    return None
+
 def build_queue(index):
     tracks,playlist_raw=parse_playlist()
     maps=build_maps(index)
@@ -380,12 +396,7 @@ def build_queue(index):
     pb,pb_raw=parse_playback()
     cur=find_queue_current(resolved,pb)
     cur_index=cur["index"] if cur else None
-    nxt=None
-    if cur_index is not None:
-        for q in resolved[cur_index+1:]:
-            if q["virtual"] or q["available"]:
-                nxt=q
-                break
+    nxt=find_queue_next(resolved,pb,cur_index)
     for q in resolved:
         q["current"]=bool(cur and q["index"]==cur_index)
         q["next"]=bool(nxt and q["index"]==nxt["index"])
