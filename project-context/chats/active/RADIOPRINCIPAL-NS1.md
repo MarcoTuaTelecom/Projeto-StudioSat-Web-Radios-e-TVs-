@@ -375,3 +375,41 @@ Arquitetura alvo V2:
 10. cutover único com rollback.
 
 Nenhum cutover está autorizado até aprovação de todos os gates.
+
+
+## Registro C18 — full forensic XRAY pós-incidente, somente leitura
+
+Objetivo: antes de qualquer nova correção, levantar o estado completo pós-C12/C14/C16/C17 e separar fatos de hipóteses.
+
+Artefatos:
+- `scripts/radioprincipal/v2/C18-POSTMORTEM-SUPPLEMENT-READONLY.sh`
+  - commit `3be4c840bc521963b39e74f22ae927a4472d6f01`
+- `scripts/radioprincipal/v2/C18-RUN-FULL-FORENSIC-XRAY.sh`
+  - commit `97961af4f2dc6780f0cdfac0f17bb24f5bce3e28`
+
+O runner executa primeiro o XRAY V2 canônico já aprovado e depois um suplemento pós-incidente.
+
+Safety:
+- nenhum `systemctl start/stop/restart/enable/disable`;
+- nenhuma alteração de selector/shadow/MediaMTX/Nginx;
+- nenhum delete/move de mídia;
+- únicas escritas são relatórios e cópias diagnósticas sob `/root`.
+
+O C18 cobre:
+- units/timers/ExecStart reais;
+- listeners e conexões 18005/1935/8789/8793/9997/8888;
+- processos e evidência do túnel;
+- probes RTMP/HLS/MediaMTX API;
+- config e journal de selector/shadow;
+- timeline completa do incidente;
+- snapshots RadioBOSS e freshness;
+- candidate/status/SQLite/WAL/permissões;
+- comparação playback x media-map;
+- inventário das bibliotecas/duplicidades;
+- protocolo e DB do media-transfer;
+- churn de generations/mirror-controller;
+- V8/legado ainda referenciado;
+- backups C12/C14;
+- resumo automatizado final.
+
+Regra: nenhuma nova correção deve ser promovida antes da leitura e análise dos dois relatórios C18.
