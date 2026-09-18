@@ -413,3 +413,52 @@ O C18 cobre:
 - resumo automatizado final.
 
 Regra: nenhuma nova correção deve ser promovida antes da leitura e análise dos dois relatórios C18.
+
+
+## Registro C19 — repositórios-base Manhã/Tarde/Noite sem downtime
+
+Decisão de contingência/reconstrução:
+
+Criar três repositórios humanos e estáveis para a Rádio Principal:
+- `/srv/tpsmedia/repository/channels/radioprincipal/programacoes/manha`
+- `/srv/tpsmedia/repository/channels/radioprincipal/programacoes/tarde`
+- `/srv/tpsmedia/repository/channels/radioprincipal/programacoes/noite`
+
+Objetivos:
+- fornecer base simples para upload manual de MP3 pelo operador;
+- eliminar dependência conceitual de múltiplas bibliotecas desconexas;
+- manter um espelho por programa enquanto a V2 é reconstruída;
+- nunca usar estes diretórios para derrubar/reiniciar a saída pública durante a construção.
+
+Implementação:
+- `scripts/radioprincipal/v2/program-repository-sync.py`
+  - commit `4a323e492f8db34441fa63e4302a4689f18b0862`;
+- `scripts/radioprincipal/v2/C19-PROVISION-PROGRAM-REPOSITORIES.sh`
+  - commit `4cb3ff7011d247286f056cb5803c92f70a55f8d0`;
+- documentação:
+  - `docs/10-radio/RADIOPRINCIPAL-PROGRAM-REPOSITORIES-BASE.md`
+  - commit `197d8bbda88f346c055bdd360fdbe14f1c5a6f11`.
+
+Safety:
+- não reinicia selector;
+- não reinicia shadow público;
+- não reinicia MediaMTX;
+- não reinicia Nginx;
+- não altera Harbor 18005;
+- apenas cria os novos diretórios/config e inicia um novo sidecar V2.
+
+O sidecar roda a cada 5s e:
+- lê playback atual do RadioBOSS;
+- detecta manhã/tarde/noite pelo source path;
+- lê o media-map canônico atual;
+- cria hardlinks dos assets já resolvidos no mirror-store para o repositório do programa correspondente, preservando nomes originais;
+- gera `manifest.current.json` e `playlist.current.m3u8`;
+- atualiza `programacoes/atual` para o programa detectado;
+- grava status em `/var/lib/studiosat/radio-v2-next/radioprincipal/program-repositories/status.json`.
+
+Sintaxe do shell validada com `bash -n`; Python validado com `python3 -m py_compile`.
+
+Observação crítica do C18:
+- current/next físicos estão resolvidos;
+- a divergência de fila permanece porque `playlistpos` inclui itens virtuais e o media-map físico não;
+- portanto estes repositórios estabilizam assets/programas, mas não substituem a futura canonical effective queue/execution engine.
