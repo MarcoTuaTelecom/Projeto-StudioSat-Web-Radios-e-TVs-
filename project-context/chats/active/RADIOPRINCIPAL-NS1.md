@@ -992,3 +992,36 @@ Interpretation:
 
 Next workstream:
 RESET-01C = stabilize RadioBOSS LIVE ingest without changing editorial/fallback logic.
+
+
+## RESET-01C — security/authentication finding before further LIVE changes
+
+Windows evidence supplied after RESET-01B:
+- listener local `127.0.0.1:18005` exists, owning PID 9232;
+- one ESTABLISHED connection from local port 49988 to `127.0.0.1:18005`, owning PID 4056;
+- therefore RadioBOSS-side source connection reaches the local tunnel listener at the instant of the sample.
+
+NS1 selector configuration from RESET-00 uses:
+- Harbor bind only on `127.0.0.1`;
+- port `18005`;
+- source user `source`;
+- Harbor password loaded from environment variable `RB_HARBOR_PASSWORD`;
+- mount `radioprincipal-rb`.
+
+Transport security model:
+1. RadioBOSS connects only to Windows loopback `127.0.0.1:18005`;
+2. SSH local forward transports that connection encrypted to NS1;
+3. SSH authenticates with dedicated account/key `studiosat-rb-tunnel`;
+4. Liquidsoap Harbor separately authenticates the source with user/password;
+5. NS1 Harbor listens only on loopback `127.0.0.1:18005`;
+6. no additional public port is required for the production path.
+
+Authentication is not the primary current failure hypothesis because the source has authenticated far enough to deliver metadata and be selected by Liquidsoap. The remaining error occurs after source acceptance during decode:
+`Feeding stopped: Avutil.Error(Invalid data found when processing input)`.
+
+Rule RESET-01C:
+- do not open another public port;
+- do not change Harbor credentials unless evidence shows authentication rejection;
+- identify PID 9232 and PID 4056 on Windows;
+- inspect RadioBOSS encoder protocol/settings without disclosing password;
+- then isolate codec/stream framing cause of decoder failure.
