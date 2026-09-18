@@ -894,3 +894,14 @@ Objetivo RESET-01A:
 - confirmar Harbor ESTABLISHED + public RTMP/HLS + latest switch para RadioBOSS.
 
 RESET-02 só será iniciado depois desta baseline pública ficar estável.
+
+
+### Hardening RESET-01A
+
+RESET-01A foi endurecido antes da execução:
+- agora exige Harbor 18005 ESTABLISHED antes de alterar o selector;
+- se RadioBOSS não estiver conectado, aborta sem tocar produção;
+- se `liquidsoap --check` falhar, restaura imediatamente a configuração anterior antes de qualquer restart.
+
+Novo commit:
+`f198858fffb6168acc2f70318ab9bc6f7c13c87e`.
