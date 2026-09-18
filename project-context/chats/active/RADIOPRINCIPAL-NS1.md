@@ -1276,3 +1276,42 @@ Artifacts:
 
 Status:
 **BUILT IN GITHUB, NOT YET EXECUTED ON NS1.**
+
+
+## V3 installer execution failed preflight / V3.1 rewrite built
+
+V3 execution:
+- shadow RTMP READY;
+- Icecast2 2.4.4 installed successfully;
+- V3 core downloaded and Python started;
+- preflight attempted to publish to `radioprincipal-v3-test`;
+- MediaMTX rejected that unconfigured path;
+- installer stopped before production cutover:
+  `FATAL=V3_PREFLIGHT_FAILED`.
+- Therefore old selector remained production; no V3 cutover occurred.
+
+V3.1 rewrite:
+- does NOT require any new MediaMTX test path;
+- preflights Icecast on 127.0.0.1:18015;
+- preflights fallback decode to null;
+- preflights AAC/FLV encoder to a local file;
+- production cutover uses only the already-configured `radioprincipal` path;
+- one persistent public FFmpeg encoder receives PCM;
+- source decoder switches between RadioBOSS live and `radioprincipal-ns1`;
+- public publisher stays alive during source switching;
+- starts on fallback, promotes to live after 15s stable + ffprobe;
+- live stall >=1.5s triggers fallback;
+- old Liquidsoap selector disabled only at cutover;
+- rollback restores old selector if public RTMP does not come back.
+
+Artifacts:
+- core: `scripts/radioprincipal/v3/radioprincipal-core-v3.1.py`
+  latest commit `c0000a49c38b96bf7af9d62f24268cf103716088`;
+- installer: `scripts/radioprincipal/v3/INSTALL-RADIOPRINCIPAL-V3.1-NOW.sh`
+  latest commit `c669c4e4980aa6f59223a9530f88a7df3a137fff`;
+- rollback: `scripts/radioprincipal/v3/ROLLBACK-RADIOPRINCIPAL-V3.1.sh`
+  commit `d0effe4bf3bb1990a60781025744150320691aa2`;
+- docs: `docs/10-radio/RADIOPRINCIPAL-V3.1-ARCHITECTURE.md`
+  commit `d3c6aa15c414ece8f6a97ea3b2969ace6dc0e997`.
+
+Status: BUILT IN GITHUB, NOT YET EXECUTED.
