@@ -788,3 +788,45 @@ NÃO CONCLUÍDO:
 12. cleanup.
 
 Regra: não criar uma nova linha arquitetural enquanto C24/C25 não forem decididos por evidência.
+
+
+## Registro C26 — RadioBOSS prioritário + fallback ordenado autoritativo (PREPARADO)
+
+Solicitação operacional: conectar RadioBOSS imediatamente, impedir o NS1 de tocar arquivos antigos em ordem aleatória e preservar a ordem Manhã/Tarde/Noite conforme a fila real do RadioBOSS.
+
+Artefatos criados:
+- `scripts/radioprincipal/v2/ordered-authoritative-shadow.py`
+  - commit `92aae06d9ff02896ef60bda435f96a455e6ac6e4`
+- `scripts/radioprincipal/v2/C26-INSTALL-AND-PROMOTE-ORDERED-FALLBACK.sh`
+  - commit `d74f1618b01a744a6d20b1d34421eb1214264d51`
+- `scripts/radioprincipal/v2/C26-WINDOWS-UNIFIED-TUNNEL.ps1`
+  - commit `098384c657d90f8819aba9f1be95148702978858`
+- runbook:
+  - `docs/10-radio/RADIOPRINCIPAL-C26-EMERGENCY-ORDERED-FALLBACK.md`
+  - commit `ebbe5748ee7d61709c95dcd3edb1a2d0b7cdc8e7`
+
+Mudança de lógica:
+- o novo fallback NÃO usa o media-map legado como autoridade de ordem;
+- lê `playlist.json` do RadioBOSS;
+- alinha por `current + playlistpos + pos_ms`;
+- resolve o asset via media-transfer DB / repositório humano;
+- se o playback estiver stale no boot, espera checkpoint válido e não inicia por arquivo arbitrário;
+- quando perde controle depois de sincronizado, continua para o próximo item físico da MESMA fila;
+- `saytime=` é classificado como virtual, não como MP3.
+
+Promoção protegida:
+- sobe primeiro em `radioprincipal-v2-shadow-hotfix`;
+- exige stream válido;
+- exige Harbor 18005 ESTABLISHED;
+- só então substitui o publisher do fallback `radioprincipal-ns1`;
+- não reinicia selector, MediaMTX ou Nginx;
+- rollback do unit anterior se o novo fallback não publicar.
+
+Windows:
+- nova tarefa `StudioSat-RadioPrincipal-Unified`;
+- desabilita a tarefa antiga `StudioSat-RadioBOSS-NS1-Tunnel`;
+- sobe automaticamente no boot como SYSTEM;
+- forwards 18005 (áudio) e 18796->8796 (edge bridge futuro/automação).
+
+Estado neste registro:
+PREPARADO NO GITHUB. Ainda não classificar como INSTALADO/ATIVO/VALIDADO sem saída da execução.
