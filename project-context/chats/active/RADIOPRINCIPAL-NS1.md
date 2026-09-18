@@ -1594,3 +1594,35 @@ Official RadioBOSS docs verified in 2026-09-18:
 - scheduler/API commands support `connect N`, `disconnect N`, and `setencodersource 0`.
 
 Status: TESTED OFF-PRODUCTION, requires execution on the Windows RadioBOSS PC because that is where the encoder, local tunnel and control agent live.
+
+
+## V5 server-only architecture built and tested
+
+User explicitly rejected any new software/script/tunnel work on the RadioBOSS PC and requested use of the existing secure standard control channel only.
+
+V5 architecture:
+- RadioBOSS PC sends control/state using the existing HTTPS radioboss-sync channel;
+- NS1 consumes playlist.json/playback.json/librarymanifest.json;
+- NS1 resolves media against existing /srv library plus media-transfer SQLite mappings;
+- NS1 plays local media directly and publishes radioprincipal;
+- no RadioBOSS live-audio tunnel is required by the new architecture;
+- old NS1 Icecast/audio-tunnel dependency is disabled only after successful V5 public cutover;
+- no PC-side installation is required.
+
+Engine:
+`scripts/radioprincipal/v5/radioprincipal-control-playout-v5.py`
+latest commit `98d30997b4c030b6f8c16900bb80d8f94626ec3b`.
+
+Installer:
+`scripts/radioprincipal/v5/INSTALL-RADIOPRINCIPAL-V5-SERVER-ONLY-NOW.sh`
+commit `41633d82e6d7c8bdda9a612eef721304475cf186`.
+
+Pre-tests completed before user execution:
+- Python compile PASS;
+- built-in selftest PASS;
+- full synthetic 165-item queue with 163 physical media, all resolved through existing media DB aliases: 100% coverage, current/next READY;
+- runtime playout test with real MP3 input: one decoder start, AAC 48k stereo output, state hot-sync, no decoder restart churn;
+- installer bash -n PASS;
+- installer static assertions PASS.
+
+Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
