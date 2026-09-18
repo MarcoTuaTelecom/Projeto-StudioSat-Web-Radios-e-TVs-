@@ -1134,3 +1134,37 @@ Artifact:
   commit `9abded575305a592dedb4e6761e054fcca25a55d`.
 
 Status: PREPARED IN GITHUB, not yet executed.
+
+
+## RESET-03 execution / RESET-04 emergency direct on-air
+
+RESET-03 execution:
+- shadow RTMP was READY;
+- real 16/17 restore candidates were found;
+- selected validated candidate:
+  `/root/studiosat-radioprincipal-v2-backup-20260916-075244/radioprincipal-selector-test.liq.before`;
+- selected SHA:
+  `89381151b7ca497bd10e6e706cde0183b3049b35902b8f3f61a9ec048c8cc573`;
+- candidate fallback was `[rb, ns1, security]`;
+- Harbor LISTEN returned after 14s;
+- public RTMP did not return;
+- RESET-03 automatically rolled back:
+  `FATAL=PUBLIC_NOT_READY_ROLLBACK`
+  `ROLLBACK=APPLIED`.
+
+Immediate emergency decision:
+bypass selector temporarily and publish existing READY `radioprincipal-ns1` directly to public `radioprincipal`.
+
+Artifact:
+- `scripts/radioprincipal/reset/RESET04-EMERGENCY-DIRECT-NS1-ON-AIR.sh`
+  commit `67d723a90a22875e979c58dbc052a6c8053e6c78`;
+- docs:
+  `docs/10-radio/RESET04-EMERGENCY-DIRECT-NS1-ON-AIR.md`
+  commit `040f08579a7b3efd85dc54dafdfa44e96903d82a`.
+
+RESET-04 behavior:
+- requires shadow RTMP READY before cutover;
+- disables/stops selector temporarily to avoid publisher conflict;
+- starts direct ffmpeg bridge radioprincipal-ns1 -> radioprincipal;
+- requires public RTMP and HLS;
+- auto-rolls back to selector if direct bridge does not publish.
