@@ -124,3 +124,32 @@ Todo artefato relevante deve ser classificado como:
 - OBSOLETO/NÃO USAR.
 
 A palavra “pronto” isoladamente não é aceita como evidência.
+
+
+## D-017 — Compatibilidade de versão é gate obrigatório
+
+**Status:** aceito após pós-mortem 2026-09-18.
+
+Antes de usar operador, parâmetro ou comportamento de software externo:
+1. capturar a versão realmente instalada;
+2. usar documentação da mesma linha de versão;
+3. validar em staging;
+4. registrar hash/config;
+5. executar soak.
+
+É proibido assumir que documentação de Liquidsoap 2.4 se aplica ao runtime 2.2, ou restaurar configuração histórica apenas porque passa no parser.
+
+## D-018 — Recuperação e reconstrução são fases diferentes
+
+**Status:** aceito.
+
+Enquanto a Rádio Principal não tiver áudio contínuo comprovado, feature work, console, candidates de failover e promoções V2 não podem alterar produção.
+
+Ordem:
+`RECUPERAR -> CONGELAR -> MEDIR -> STAGING -> SOAK -> PROMOVER`.
+
+## D-019 — Playlist estática não é fonte canônica das rádios temáticas
+
+**Status:** aceito.
+
+Rádio Pop, Rock, Clássicas e Country não devem depender permanentemente de uma lista mínima executada com `-stream_loop -1`. A fonte canônica deve ser catálogo/programação, com repeat protection e regras editoriais; playlist é artefato gerado.
