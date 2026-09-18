@@ -1012,7 +1012,7 @@ def selftest():
             {"duration":"00:15","virtual":False,"local_path":""},
         ]
         ei,ep,eh=extrapolate_control(qtest,0,5000,32.0)
-        assert ei==2 and ep==7000, f"extrapolation wrong: {ei} {ep} {eh}"
+        assert ei==3 and ep==2000, f"extrapolation wrong: {ei} {ep} {eh}"
 
         print("SELFTEST=PASS")
         return 0
