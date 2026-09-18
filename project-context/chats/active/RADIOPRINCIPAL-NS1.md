@@ -1667,3 +1667,46 @@ Artifacts:
 - installer V5.1 commit `a90aa605a3779612a7ed92790251fb028677aa87`.
 
 Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
+
+
+## V6 consolidated reconstruction built and pre-tested
+
+Current production after failed V5.1 attempt:
+- V5.1 aborted before mutation because existing V8 control bridge playback was ~16040s stale.
+- V32 public baseline remained active and public RTMP was confirmed READY before abort.
+- Restarting the V8 control bridge did not refresh the source, proving the bridge itself was not the missing producer.
+
+Recovered historical evidence:
+- V8 control bridge is an existing NS1 service running control-bridge-v3.2.py.
+- When upstream RadioBOSS sync was healthy, it produced fresh /run/studiosat-radioprincipal-v8-control/playback.json.
+- radioboss-sync endpoint is the canonical HTTPS ingest/state server and stores playback/current snapshots.
+- Therefore current failure is upstream control freshness, not merely the bridge process.
+
+V6 final architecture:
+- single canonical NS1 playout;
+- no PC install;
+- no audio-tunnel dependency;
+- playlist/library from existing radioboss-sync snapshots;
+- fresh playback from V8 control bridge when available;
+- stale playback enters autonomous-extrapolated mode by advancing last known RadioBOSS position through the authoritative queue using item durations;
+- automatically returns to hot-sync when fresh control reappears;
+- media resolves from human NS1 tree + media-transfer DB + manifest SHA;
+- lab publishes first to existing radioprincipal-test path while V32 remains public;
+- cutover occurs only after lab RTMP/audio/state pass;
+- rollback restores V32 if production V6 fails;
+- after successful cutover old Icecast/shadow/selectors/old cores are disabled;
+- obsolete studiosat-rb-tunnel login is denied server-side.
+
+Pre-tests completed:
+- Python compile PASS;
+- built-in V6 selftest PASS;
+- stale-control runtime PASS in autonomous-extrapolated mode with AAC 48k stereo output;
+- installer bash syntax PASS;
+- installer lab/cutover/tunnel policy gates PASS.
+
+Artifacts:
+- V6 engine commit `7e913ecb2961b9e5b17e3d31070e2ef879b8ad5b`;
+- V6 installer commit `ae896beb2faa3e05eb9dc99f620239fc77ddf8af`;
+- V6 architecture docs commit `60a18f9c70632f1c8db6b0203fecd8566a7110bc`.
+
+Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
