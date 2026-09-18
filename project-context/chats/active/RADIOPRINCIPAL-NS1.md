@@ -855,3 +855,42 @@ Artefatos:
 
 Meta imediata:
 não corrigir fallback/playlist ainda; primeiro colocar a Rádio Principal no ar pelo RadioBOSS e capturar o raio X completo do NS1.
+
+
+## RESET-00 factual baseline recebida — 2026-09-18
+
+Foi analisado o pacote real `studiosat-ns1-raiox-20260918T174058Z`.
+
+Descobertas decisivas:
+- `radioprincipal` READY;
+- `radioprincipal-ns1` READY;
+- `radioprincipal-rb` MediaMTX DOWN, porém este path não é o LIVE atual;
+- Harbor Liquidsoap 127.0.0.1:18005 LISTEN e com conexões ESTABLISHED no snapshot;
+- selector público real usa `[rb, local, security]`;
+- `local` = `/srv/studiosat/radio-principal/playlists/current.m3u`;
+- portanto o selector público NÃO estava usando `radioprincipal-ns1` como fallback;
+- `current.m3u` contém 291 entradas: 109 hora-certa, 28 Manhã, 69 Noite, 85 Tarde;
+- ordem da lista: todos os elementos hora-certa -> Manhã -> Noite -> Tarde;
+- isso é editorialmente inválido;
+- switches comprovados: RB 17:40:19 -> local 17:40:26 -> RB 17:40:36 -> local 17:40:49 -> RB 17:40:59;
+- mirror controller: 166 tracks RadioBOSS / 163 disponíveis / 3 missing;
+- playback: playlistpos 15; current B. J. Thomas; next Djavan;
+- current/next não estavam no current.m3u capturado;
+- shadow legado `mirror-playout.py` continua ativo e publica radioprincipal-ns1, mas não é usado pelo selector atual.
+
+Documento factual:
+`docs/10-radio/RESET00-FACTUAL-FINDINGS-2026-09-18.md`
+commit `0ce1e279a849cb567451ea846e16c7a7ad55026c`.
+
+RESET-01A preparado:
+`scripts/radioprincipal/reset/RESET01A-RADIOBOSS-ONLY-PUBLIC.sh`
+commit `98b4feae2d57f14e8237edaa725672736169c4e9`.
+
+Objetivo RESET-01A:
+- remover `local_grade` do fallback público;
+- deixar temporariamente `RadioBOSS Harbor -> blank`;
+- impedir qualquer arquivo antigo/não autorizado de entrar no ar;
+- reiniciar somente o selector uma vez, com backup e rollback se o Harbor não voltar a LISTEN;
+- confirmar Harbor ESTABLISHED + public RTMP/HLS + latest switch para RadioBOSS.
+
+RESET-02 só será iniciado depois desta baseline pública ficar estável.
