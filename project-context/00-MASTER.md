@@ -147,3 +147,36 @@ Chats são área de trabalho; Git é a fonte permanente.
 ## 10. Estado operacional
 
 Não inferir o estado atual de NS1/NS2/streams apenas deste arquivo. Antes de executar mudança em produção, atualizar um checkpoint usando health/read-only e registrar o resultado em `project-context/checkpoints/`.
+
+
+## 11. Rádio Principal — referência mestre atualizada em 2026-09-18
+
+A frente `RADIOPRINCIPAL-NS1` possui dossiê mestre próprio:
+
+`docs/10-radio/RADIOPRINCIPAL-MASTER-DOSSIER-V4.md`
+
+Esse dossiê consolida:
+- objetivo detalhado;
+- arquitetura atual e alvo;
+- histórico C01-C25;
+- o que funcionou;
+- o que falhou;
+- incidentes;
+- regras de negócio;
+- regras de sistema;
+- prioridades;
+- gates;
+- console do operador;
+- automação Windows;
+- próximos passos.
+
+Estado resumido da frente:
+- RadioBOSS continua autoridade editorial;
+- selector público já prioriza RadioBOSS;
+- LIVE RadioBOSS/Harbor permanece instável e P1 segue aberto;
+- shadow público ainda é legado;
+- C22 provou repositório humano incompleto (Manhã 27, Tarde 85, Noite 69);
+- C24/C25 estão preparados, mas ainda não devem ser considerados instalados sem evidência;
+- Operator Web UI final ainda não está concluído.
+
+Para este workstream, novos chats devem ler o dossiê V4 antes de propor mudanças.
