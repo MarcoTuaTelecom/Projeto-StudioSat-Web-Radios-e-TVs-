@@ -572,3 +572,35 @@ Estados:
 - SAMPLE_PASS (janela curta; não substitui soak).
 
 Nenhum P2/P3/P4 será promovido para produção antes de fechar P1.
+
+
+## Registro C21R/C22 — recuperação de túnel único + reconciliação real do repositório humano
+
+Diagnóstico do C21 em 2026-09-18:
+- Harbor 18005 LISTEN em 100% da janela;
+- conexão ESTABLISHED em apenas 17,65% das amostras;
+- playback/control ficou ~9000s stale no início e voltou a ficar fresco no fim;
+- dois eventos `Feeding stopped: Avutil.Error(Invalid data found when processing input)`;
+- metadata Tim Maia chegou e o selector finalmente mudou para `radioprincipal_rb_harbor`;
+- conclusão: prioridade do RadioBOSS funciona, mas o canal LIVE/túnel/source não ficou continuamente estabelecido.
+
+C21R preparado:
+- `scripts/radioprincipal/v2/C21R-WINDOWS-RESET-SINGLE-TUNNEL.ps1`
+- commit `b5ee975b4ef518d4ff4984f03620f301b43a66dd`
+- objetivo: eliminar instâncias antigas do túnel Windows e subir exatamente o watchdog agendado uma vez.
+
+Falha de arquitetura identificada:
+- a árvore humana `/srv/studiosat/radio-principal/grade/*` não alimentava o shadow público legado;
+- o sync anterior só semeava a árvore a partir de maps/generations e não reconciliava diretamente o banco real de `media-transfer`;
+- por isso upload manual na pasta humana não significava automaticamente asset conhecido pelo legado.
+
+C22 preparado:
+- `scripts/radioprincipal/v2/human-repository-reconciler.py`
+- commit `8e37fbb6341451e1f5ec47528f869195c9b69db6`
+- `scripts/radioprincipal/v2/C22-INSTALL-HUMAN-REPOSITORY-RECONCILER.sh`
+- commit `2a794fa0c0c6a820c5a02262b50ac9394d464a46`
+- reconcilia a cada 5s `media-transfer.sources + repository_index + assets + media-map` para `grade/manha|tarde|noite`;
+- preserva arquivos manuais e registra conflitos;
+- não reinicia áudio público.
+
+Importante: C22 corrige a sincronização da biblioteca humana, mas ainda não troca o shadow público legado. A troca do fallback só será feita depois de um V2 shadow isolado ser validado.
