@@ -200,7 +200,7 @@ try:
                 time.sleep(0.25)
                 start_decoder("fallback")
 
-        ready, _, _ = select.select([decoder.stdout], [], [], 0.05)
+        ready, _, _ = select.select([decoder.stdout], [], [], 0.02)
         if ready:
             data = os.read(decoder.stdout.fileno(), CHUNK_BYTES)
             if data:
