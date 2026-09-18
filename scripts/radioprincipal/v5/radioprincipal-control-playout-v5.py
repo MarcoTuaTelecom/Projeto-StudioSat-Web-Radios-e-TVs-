@@ -360,7 +360,8 @@ def resolve_item(item,maps,index,mmanifest):
     if srcfull and srcfull in by_source_full:
         c.extend(by_source_full[srcfull])
 
-    if not c and bkey and bkey in exact:\n        c.extend(exact[bkey])
+    if not c and bkey and bkey in exact:
+        c.extend(exact[bkey])
 
     # Manifest SHA bridge: Windows RadioBOSS path -> canonical SHA object on NS1.
     if not c:
@@ -505,7 +506,8 @@ def build_queue(index):
 def report_check(q):
     idx=load_json(INDEX)
     print(f"LIBRARY_FILES={idx.get('count',0)}")
-    print(f"SYMLINK_ALIASES={idx.get('symlink_aliases',0)}")\n    print(f"DB_ALIASES={idx.get('db_aliases',0)}")
+    print(f"SYMLINK_ALIASES={idx.get('symlink_aliases',0)}")
+    print(f"DB_ALIASES={idx.get('db_aliases',0)}")
     print(f"QUEUE_TRACKS={q['track_count']}")
     print(f"MEDIA_COUNT={q['media_count']}")
     print(f"VIRTUAL_COUNT={q['virtual_count']}")
@@ -727,9 +729,12 @@ class Playout:
         self.dec_stop()
         safe_term(self.pub)
 
-def selftest():\n    global ROOTS, INDEX, MEDIA_DB
+def selftest():
+    global ROOTS, INDEX, MEDIA_DB
     old_roots=ROOTS
-    old_index=INDEX\n    old_db=MEDIA_DB\n    try:
+    old_index=INDEX
+    old_db=MEDIA_DB
+    try:
         with tempfile.TemporaryDirectory(prefix="studiosat-v41-selftest-") as td:
             root=Path(td)/"radio-principal"
             store=Path(td)/"mirror-store"
@@ -834,7 +839,9 @@ def selftest():\n    global ROOTS, INDEX, MEDIA_DB
         print("SELFTEST_ERROR="+repr(exc))
         return 90
     finally:
-        ROOTS=old_roots\n        INDEX=old_index\n        MEDIA_DB=old_db
+        ROOTS=old_roots
+        INDEX=old_index
+        MEDIA_DB=old_db
 
 def main():
     ap=argparse.ArgumentParser()
