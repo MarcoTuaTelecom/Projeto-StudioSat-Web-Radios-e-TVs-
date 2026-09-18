@@ -646,3 +646,145 @@ C25 Windows automatic agent PREPARADO:
 - temporariamente NÃO substitui o túnel de áudio 18005 até validar uploads; depois haverá consolidação final em um único agente/túnel.
 
 Regra: não declarar C24/C25 instalados antes de evidência de execução.
+
+
+## Registro 2026-09-18 — consolidação documental imediata do projeto
+
+Por solicitação explícita, todo o histórico conhecido da Rádio Principal foi consolidado no GitHub para impedir perda de contexto e repetição de erros.
+
+### Fonte mestre nova
+
+`docs/10-radio/RADIOPRINCIPAL-MASTER-DOSSIER-V4.md`
+
+Commit:
+`8b4e0b9c8ac26a03c842afe4aa4478655555b9bf`
+
+Conteúdo:
+- objetivo detalhado;
+- arquitetura atual e alvo;
+- RadioBOSS como autoridade;
+- separação LIVE/control/assets;
+- histórico C01-C25;
+- acertos;
+- falhas;
+- incidentes C12/C14;
+- C18 forensic;
+- resultados C21/C21R/C22;
+- C23/C24/C25 preparados;
+- regras de negócio;
+- regras de sistema;
+- console do operador;
+- prioridades P0-P10;
+- gates;
+- plano passo a passo;
+- definição de sucesso.
+
+### Decisões atualizadas
+
+`project-context/02-DECISIONS.md`
+
+Commit:
+`a64235f860bf3483a1aa040173598be15a47510a`
+
+Novas decisões D-008..D-016:
+- RadioBOSS autoridade editorial;
+- planos LIVE/control/assets separados;
+- failover preserva conteúdo;
+- produção congelada para candidates;
+- Canonical Effective Queue;
+- SHA256 + transferência automática;
+- operação humana obrigatória;
+- PC local com um agente oculto;
+- status explícito de artefatos.
+
+### MASTER atualizado
+
+`project-context/00-MASTER.md`
+
+Commit:
+`3a81cd2f8b48723b558f19fa5a24a26b29bf4513`
+
+Passa a apontar o dossiê V4 como referência obrigatória da frente.
+
+### Next Steps atualizados
+
+`project-context/03-NEXT-STEPS.md`
+
+Commit:
+`ceaa79dca1d6793c1ad2d0d4ad2310aaddd4a0a3`
+
+P0-P10 passam a ter precedência operacional.
+
+### Backlog/gates atualizado
+
+`docs/10-radio/RADIOPRINCIPAL-REBUILD-BACKLOG-AND-GATES-V1.md`
+
+Commit:
+`38e724a68c457fb6fa799542bd9f0a158e1d36dd`
+
+Registra estado factual de C21/C21R/C22/C23/C24/C25 e gates obrigatórios.
+
+### Chat Bridge atualizado
+
+`project-context/06-CHAT-BRIDGE.md`
+
+Commit:
+`481ddb3c215948d6f930a607656d44e339e08bbb`
+
+Novo chat RADIOPRINCIPAL-NS1 deve obrigatoriamente ler o Dossiê V4.
+
+### Regras do console atualizadas
+
+`docs/10-radio/RADIOPRINCIPAL-OPERATOR-CONSOLE-BUSINESS-RULES-V1.md`
+
+Commit:
+`70cadd4e18e24923e549dd7f4cae607782d7fedd`
+
+Foi explicitado o que é requisito e o que ainda não está implementado.
+
+### Estado técnico no momento desta consolidação
+
+CONFIRMADO:
+- C21 classificou LIVE como UNSTABLE;
+- Harbor established em 17,65% das amostras daquela janela;
+- C21R restaurou listener local 18005/TCP local=True, mas logs ainda mostraram connection refused;
+- C22 executou com Manhã 27, Tarde 85, Noite 69;
+- C22 ainda classificou indevidamente `saytime` como missing source, defeito registrado;
+- shadow público continua legado;
+- sincronização automática completa da grade ainda não está validada.
+
+PREPARADO NO GITHUB, NÃO CONFIRMADO COMO INSTALADO:
+- C23 isolated V2 shadow;
+- C24 Edge Bridge;
+- C25 Windows Automatic Agent;
+- Operator API scaffold.
+
+NÃO CONCLUÍDO:
+- Operator Web UI final;
+- auth/users/password/MFA/RBAC;
+- transfer manager completo;
+- audit log;
+- reports;
+- Canonical Effective Queue;
+- adapters de hora certa/temperatura/comerciais;
+- selector V2 anti-flap;
+- soak;
+- cutover;
+- legacy cleanup.
+
+### Próxima ordem obrigatória
+
+1. P1 — estabilizar LIVE/túnel/Harbor end-to-end;
+2. validar C24;
+3. validar C25;
+4. provar sync completo da playlist atual;
+5. construir Canonical Effective Queue;
+6. validar execution engine V2 isolado;
+7. construir adapters;
+8. construir console operacional;
+9. selector V2;
+10. soak;
+11. cutover;
+12. cleanup.
+
+Regra: não criar uma nova linha arquitetural enquanto C24/C25 não forem decididos por evidência.
