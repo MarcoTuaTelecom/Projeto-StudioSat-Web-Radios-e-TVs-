@@ -168,10 +168,10 @@ timeout 10 ffmpeg -hide_banner -loglevel error -nostdin \
   -rw_timeout 5000000 -i rtmp://127.0.0.1:1935/radioprincipal-ns1 \
   -map 0:a:0 -t 3 -f null - >/dev/null 2>&1 || fail "FALLBACK_DECODE_PREFLIGHT_FAILED"
 
-timeout 8 ffmpeg -hide_banner -loglevel error -nostdin \\
-  -f lavfi -i anullsrc=r=48000:cl=stereo \\
-  -t 3 -c:a aac -b:a 128k -ar 48000 -ac 2 \\
-  -f flv "$BK/encoder-selftest.flv" \\
+timeout 8 ffmpeg -hide_banner -loglevel error -nostdin \
+  -f lavfi -i anullsrc=r=48000:cl=stereo \
+  -t 3 -c:a aac -b:a 128k -ar 48000 -ac 2 \
+  -f flv "$BK/encoder-selftest.flv" \
   >/dev/null 2>&1 || fail "ENCODER_PREFLIGHT_FAILED"
 [ -s "$BK/encoder-selftest.flv" ] || fail "ENCODER_SELFTEST_EMPTY"
 say "MEDIA_PREFLIGHT=PASS"
