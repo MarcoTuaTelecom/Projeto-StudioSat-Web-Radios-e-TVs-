@@ -508,3 +508,38 @@ Safety do C20:
 - endpoints de produção ficam bloqueados (HTTP 423) durante reconstrução.
 
 O sync inicial pode semear Manhã/Tarde/Noite usando generations históricos + media-map atual, por hardlink quando possível, sem sobrescrever silenciosamente arquivo manual conflitante.
+
+
+## Registro V3 — Âncora mestre, regras do operador e backlog/gates
+
+Em 2026-09-18 foram formalizados os documentos que passam a orientar todo o workstream:
+
+- `docs/10-radio/RADIOPRINCIPAL-MASTER-ANCHOR-V3.md`
+  - commit `dade1e51f1481fac0103748f8c29129a0b19d87f`
+- `docs/10-radio/RADIOPRINCIPAL-OPERATOR-CONSOLE-BUSINESS-RULES-V1.md`
+  - commit `f616fe7a21e473916d5378e23efb181b9bb0b747`
+- `docs/10-radio/RADIOPRINCIPAL-REBUILD-BACKLOG-AND-GATES-V1.md`
+  - commit `d2895c8d29378c04e9e53ad1cc70d5fddd49417c`
+
+Fatos fixados:
+- a prioridade lógica do selector já é RadioBOSS Harbor -> NS1 shadow -> blank;
+- o problema observado não é ausência dessa prioridade, mas indisponibilidade/microflaps reais do source Harbor, que fazem o selector cair no shadow;
+- playback/control fresh não equivale a áudio LIVE estável;
+- o shadow público continua legado e diverge da fila efetiva;
+- não existe ainda Operator Web UI final instalada/validada;
+- API/UI preparadas em código não devem ser tratadas como instaladas sem evidência;
+- autenticação, usuários, RBAC, MFA, auditoria, transfer manager e relatórios são entregas obrigatórias do produto;
+- não declarar “pronto” sem classificar o estado como PREPARADO / INSTALADO / ATIVO / VALIDADO / PRODUÇÃO.
+
+Prioridade atual:
+P0 continuidade pública;
+P1 estabilizar LIVE RadioBOSS/Harbor;
+P2 canonical effective queue;
+P3 assets/transfer manager;
+P4 execution engine V2;
+P5 adapters editoriais;
+P6 operator API/UI/auth/RBAC/audit/reports;
+P7 selector V2 anti-flap;
+P8 soak;
+P9 cutover;
+P10 legacy cleanup.
