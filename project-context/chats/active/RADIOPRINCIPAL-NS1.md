@@ -1025,3 +1025,39 @@ Rule RESET-01C:
 - identify PID 9232 and PID 4056 on Windows;
 - inspect RadioBOSS encoder protocol/settings without disclosing password;
 - then isolate codec/stream framing cause of decoder failure.
+
+
+## RESET-02 — restore 16/17 das rádios temáticas (PREPARADO)
+
+Nova evidência Windows:
+- PID 9232 = `ssh.exe` com forward `127.0.0.1:18005 -> NS1 127.0.0.1:18005`;
+- PID 4056 = `radioboss.exe`;
+- portanto RadioBOSS realmente abre conexão com o listener do túnel local.
+
+Solicitação operacional urgente:
+- restaurar o último ponto válido de 17/09 ou 16/09 para as emissoras temáticas porque estão repetindo as mesmas músicas;
+- manter Rádio Principal sob RadioBOSS, sem voltar a playlist estática.
+
+RESET-00 mostrou que:
+- radiopop/radiocountry/radioclassicas/radiorock estão rodando FFmpeg com `-stream_loop -1` sobre `/srv/tpsmedia/repository/channels/<radio>/playlists/playlist.txt`;
+- esses quatro processos foram iniciados juntos em 18/09 06:20 UTC;
+- isso explica repetição determinística se as playlists estáticas não tiverem sido atualizadas.
+
+RESET-02 preparado:
+- `scripts/radioprincipal/reset/RESET02-RESTORE-LATEST-16-17-RADIOS.sh`
+  - commit `f97f3fc9397afa23e2c1008fa71f88977c4634fb`
+- documentação:
+  - `docs/10-radio/RESET02-RESTORE-LATEST-16-17-RADIOS.md`
+  - commit `d94c2fb9af978ef6c20fa5bce028ee96f67ecc13`
+
+Comportamento:
+- procura restore points válidos de playlist entre 16/09 00:00Z e 18/09 00:00Z;
+- considera backups em /root/studiosat-backups, /var/backups/studiosat e diretórios da própria emissora;
+- ignora cópia idêntica à atual;
+- exige pelo menos 2 itens e todos os arquivos referenciados existentes;
+- aplica uma emissora por vez;
+- reinicia apenas o serviço daquela emissora;
+- exige service active + MediaMTX ready + HLS;
+- rollback individual em falha;
+- NÃO altera a Rádio Principal;
+- se nenhum restore point existir, sai sem mudanças.
