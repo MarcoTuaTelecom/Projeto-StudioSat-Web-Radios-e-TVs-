@@ -44,7 +44,8 @@ EXTS={".mp3",".m4a",".aac",".wav",".flac",".ogg",".opus"}
 RUN=True
 CHUNK=3840
 SILENCE=b"\x00"*CHUNK
-CONTROL_FRESH_SEC=float(os.environ.get("STUDIOSAT_V5_CONTROL_FRESH_SEC","15"))\nMEDIA_DB=Path(os.environ.get("STUDIOSAT_V5_MEDIA_DB","/var/lib/studiosat/radio-v2/media-transfer/index.sqlite3"))
+CONTROL_FRESH_SEC=float(os.environ.get("STUDIOSAT_V5_CONTROL_FRESH_SEC","15"))
+MEDIA_DB=Path(os.environ.get("STUDIOSAT_V5_MEDIA_DB","/var/lib/studiosat/radio-v2/media-transfer/index.sqlite3"))
 
 def log(msg):
     print(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())} {msg}",flush=True)
