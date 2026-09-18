@@ -18,6 +18,7 @@
 | RP-040 | P3 | Transfer Manager | **ABERTO** | progresso/retry/prioridade/ETA/audit |
 | RP-050 | P4 | Execution Engine V2 | **ABERTO** | mesmo item + drift <=5s em test path |
 | RP-051 | P4 | C23 isolated shadow | **PREPARADO NO GITHUB** | instalar em `radioprincipal-v2-shadow` e validar |
+| RP-052 | P4 | C26 ordered authoritative fallback | **PREPARADO NO GITHUB** | conectar Harbor, validar test path e substituir shadow legado sem reiniciar selector |
 | RP-060 | P5 | Hora Certa adapter | **ABERTO** | saytime executado corretamente |
 | RP-070 | P5 | Temperatura adapter | **ABERTO** | evento/áudio de temperatura validado |
 | RP-080 | P5 | Comerciais/Scheduler | **ABERTO** | equivalência RadioBOSS x V2 |
