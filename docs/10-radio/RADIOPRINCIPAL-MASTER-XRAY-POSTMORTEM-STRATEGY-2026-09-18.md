@@ -810,3 +810,148 @@ Primeiro recuperamos áudio estável.
 Depois construímos a nova cadeia em paralelo usando versões suportadas e documentação correspondente.
 
 Somente após soak a nova cadeia toca produção.
+
+
+---
+
+## 38. RESET-05 — auditoria real de compatibilidade executada em 2026-09-18T20:23:59Z
+
+O RESET-05 foi executado em modo somente leitura no NS1.
+
+### Sistema operacional
+
+- Ubuntu 24.04.4 LTS (Noble);
+- kernel 6.17.0-1022-gcp;
+- x86_64.
+
+### Runtime real
+
+- Liquidsoap: `2.2.4-1+dev`;
+- pacote Debian Liquidsoap: `2.2.4-1`;
+- FFmpeg: `6.1.1-3ubuntu5`;
+- FFprobe: `6.1.1-3ubuntu5`;
+- MediaMTX: `v1.20.1`;
+- Nginx: `1.24.0`;
+- Python: `3.12.3`;
+- Node: `22.23.2`;
+- npm: `10.9.8`;
+- OpenSSH: `9.6p1`;
+- Git: `2.43.0`;
+- curl: `8.5.0`.
+
+O binário `sqlite3` de linha de comando NÃO está instalado, embora `libsqlite3-0 3.45.1` esteja presente. Os serviços Python continuam podendo usar o módulo sqlite3; a ausência afeta diagnóstico manual, não prova falha do banco.
+
+### MediaMTX
+
+Versão comprovada:
+`v1.20.1`
+
+SHA256 do binário:
+`dbf4c21f6378949f2cbdaadf4a8b10baa3ce022b570da1411eb64f2142b07b7b`
+
+Portanto a hipótese anterior “versão desconhecida” está encerrada.
+
+A release upstream atual observada em 2026-09-18 é `v1.21.0`. Como `v1.20.1` já está entregando RTMP/API/HLS, upgrade de MediaMTX NÃO é prioridade de recuperação.
+
+### Configuração pública atual
+
+Selector:
+- mtime: `2026-09-18 19:06:40Z`;
+- SHA256: `a852e30b78b4c33f6adaa2bd4b7715ecac5ba32cb4b24c1a2ef103df2fb4fa40`.
+
+Environment:
+- SHA256: `1843aae0b3f4fa2f3c42eead89735372888b682aa20dc8d21975b91d9c82e5ce`.
+
+MediaMTX config:
+- SHA256: `fab44d8a411d23fdc31ccf24ff268b7f2c2fb6cd6f9f00b81c6c1dddceadd6c2`.
+
+O `liquidsoap --check` da configuração atual passa, com warning:
+`Unused variable local`.
+
+Isso confirma que a definição `local` permanece no arquivo, porém não participa da expressão pública atual pós-RESET01B. Deve ser removida somente em cleanup controlado; não é motivo para novo restart agora.
+
+### Estado dos serviços
+
+Ativos:
+- media-transfer;
+- radioboss-sync;
+- authority-candidate;
+- rb-monitor;
+- selector;
+- shadow-ns1;
+- v2-edge-bridge;
+- v2-operator-api;
+- v8-control-bridge;
+- MediaMTX;
+- radiopop/radiorock/radioclassicas/radiocountry;
+- timers mirror-controller e human-repo.
+
+Falha comprovada:
+- `studiosat-radioprincipal-emergency-direct.service` = FAILED.
+
+Portanto RESET-04 NÃO colocou a rádio em produção e deve ser classificado:
+**FALHOU**.
+
+A coexistência de authority candidate, edge bridge, operator API, V8 control bridge e timers enquanto a cadeia LIVE ainda está instável aumenta superfície operacional e deve ser congelada. Não significa que todos causam o defeito, mas eles não devem participar de novas promoções durante recuperação.
+
+### Impacto na estratégia de versões
+
+#### Liquidsoap 2.2.4
+Não é seguro continuar acrescentando lógica nova ao runtime 2.2.4-1+dev.
+
+Upstream 2.4.5 é a release suportada atual observada. A linha 2.4 contém correções posteriores de `input.harbor` e de streaming/FFmpeg, mas também existem issues recentes de Harbor. Portanto:
+
+**upgrade não é tratado como correção garantida.**
+
+A única estratégia aceita é:
+- instalar 2.4.5 em staging isolado;
+- alimentar com o mesmo RadioBOSS;
+- comparar 2.2.4 x 2.4.5;
+- medir `Feeding stopped`, reconnect, metadata e continuidade;
+- manter produção 2.2.4 intacta durante o ensaio.
+
+#### RadioBOSS
+O RadioBOSS comprovado no projeto continua 7.2.2.0.
+
+A documentação oficial confirma suporte a Icecast e Shoutcast como destinos de broadcast. Portanto a arquitetura não precisa depender obrigatoriamente de `input.harbor`: um ingest Icecast dedicado pode ser testado em staging como plano B, preservando o encoder padrão do RadioBOSS.
+
+#### MediaMTX
+v1.20.1 está próximo da v1.21.0 atual e não é o gargalo comprovado. Congelar durante a recuperação.
+
+#### FFmpeg
+6.1.1 permanece. Não atualizar isoladamente antes do teste comparativo do ingest.
+
+### Nova hipótese de arquitetura a testar em staging
+
+Dois caminhos devem ser comparados lado a lado:
+
+**A — Harbor moderno**
+```
+RadioBOSS -> SSH -> Liquidsoap 2.4.5 input.harbor -> RTMP test
+```
+
+**B — ingest desacoplado**
+```
+RadioBOSS -> SSH -> Icecast2 staging -> Liquidsoap/FFmpeg consumer -> RTMP test
+```
+
+Motivo do plano B:
+- RadioBOSS oficialmente transmite para Icecast;
+- remove a responsabilidade de aceitar a conexão source do Liquidsoap;
+- permite separar “source protocol” de “mix/failover/encoding”;
+- reduz acoplamento entre encoder RadioBOSS e decoder Harbor.
+
+Nenhum desses caminhos toca `radioprincipal` durante teste.
+
+### Gate de escolha
+
+Escolher o ingest somente depois de:
+- 6 h contínuas;
+- depois 24 h;
+- zero perda editorial;
+- zero reconnect anormal;
+- metadata correta;
+- CPU/memória estáveis;
+- restart/reboot testado;
+- rollback documentado.
+
