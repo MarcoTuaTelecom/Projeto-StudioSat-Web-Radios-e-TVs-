@@ -157,7 +157,7 @@ echo "LATEST_SWITCH=$latest"
 
 echo '===== VERIFY LOCAL REMOVED FROM FALLBACK ====='
 grep -nE 'security = blank|program = fallback|\[rb' "$CFG" || true
-if grep -Eq '\[\s*rb\s*,\s*local' "$CFG"; then
+if grep -Eq '\[[[:space:]]*rb[[:space:]]*,[[:space:]]*local' "$CFG"; then
   echo 'ERRO=LOCAL_STILL_PUBLIC'
   exit 40
 fi
