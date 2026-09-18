@@ -1061,3 +1061,38 @@ Comportamento:
 - rollback individual em falha;
 - NÃO altera a Rádio Principal;
 - se nenhum restore point existir, sai sem mudanças.
+
+
+## RESET-02 execution result — no 16/17 restore points found
+
+User executed `RESET02-RESTORE-LATEST-16-17-RADIOS.sh`.
+
+Current playlist snapshot on 2026-09-18:
+- radiopop: 10 items, mtime 2026-09-18 06:20:36Z;
+- radiorock: 10 items, same generation time;
+- radioclassicas: 11 items;
+- radiocountry: 18 items;
+- all four services active.
+
+Restore discovery:
+- radiopop: no valid candidate;
+- radiorock: no valid candidate;
+- radioclassicas: no valid candidate;
+- radiocountry: no valid candidate;
+- `RESTORE_POINTS_FOUND=0/4`;
+- `RESULTADO=RESET02_NO_VALID_16_17_RESTORE_POINT_FOUND`;
+- `NO_CHANGES=YES`.
+
+Interpretation:
+- there is no safe playlist restore point from 16/17 in the searched backup locations;
+- do not invent or fabricate a historical restore;
+- thematic radios are looping tiny static playlists (10/10/11/18), which explains repetition.
+
+Next diagnostic:
+RESET-02B read-only media inventory to determine whether larger libraries still exist outside the current `ready/` sets.
+
+Artifacts:
+- `scripts/radioprincipal/reset/RESET02B-THEMATIC-MEDIA-INVENTORY.sh`
+  - commit `81b2f5b46900de4ec696bba333c0d3767a936185`
+- `docs/10-radio/RESET02B-THEMATIC-MEDIA-INVENTORY.md`
+  - commit `5ebf7bc7e4b41052d0d76dde601de8507571dd22`.
