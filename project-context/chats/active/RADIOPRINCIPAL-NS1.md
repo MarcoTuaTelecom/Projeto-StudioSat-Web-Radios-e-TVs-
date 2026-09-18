@@ -1375,3 +1375,39 @@ Artifacts:
 - docs commit `28c2c042310a48806d3fca609ddbdda5e7e8b5fc`.
 
 Status: BUILT IN GITHUB, NOT YET EXECUTED.
+
+
+## V3.2 production finalizer built
+
+User requested immediate project improvement instead of further diagnosis.
+
+Current V3.2 evidence:
+- RadioBOSS Icecast audio was READY before cutover;
+- selected_source reached `live`;
+- live PCM counters were non-zero and increasing;
+- metadata showed `Ritchie - Menina Veneno`;
+- V3.2 core active;
+- Icecast active;
+- shadow active;
+- old selector inactive;
+- public RTMP READY;
+- HLS still PENDING in installer window.
+
+Production-finalize adds:
+- dedicated HLS warmer for `radioprincipal`;
+- local production health endpoint on `127.0.0.1:8812/readyz`;
+- continuous `live_bytes` acceptance gate;
+- local HLS gate;
+- public HTTPS HLS gate;
+- optional MediaMTX API patch `hlsAlwaysRemux=true` only if local HLS remains cold;
+- boot baseline lock with V3.2/Icecast/shadow/HLS warmer/health enabled;
+- old public competitors disabled;
+- final acceptance requires RadioBOSS live PCM still increasing.
+
+Artifacts:
+- HLS warmer commit `4d65acf69714bd84e36f371810d14a95e27745cb`;
+- health endpoint commit `1bbe8f706f2b1f036b71ede786a7ae6db91be4c7`;
+- production finalizer commit `4c851ee29bbaefb7ee56c9f8a06e5d62306025f1`;
+- docs commit `c285d8347b8657c34b80f31d0ba9e7c89195886d`.
+
+Status: BUILT IN GITHUB, NOT YET EXECUTED.
