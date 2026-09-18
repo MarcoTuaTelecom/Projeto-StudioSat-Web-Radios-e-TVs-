@@ -1192,3 +1192,35 @@ Mudança de estratégia:
 - rádios temáticas deixam de ter playlist mínima em loop como arquitetura final.
 
 RESET-04 permanece PREPARADO NO GITHUB até existir evidência de execução.
+
+
+## RESET-05 executed — actual runtime compatibility baseline
+
+Audit timestamp: `2026-09-18T20:23:59Z`.
+
+Confirmed:
+- Ubuntu 24.04.4 LTS;
+- Liquidsoap 2.2.4-1+dev / package 2.2.4-1;
+- FFmpeg/ffprobe 6.1.1-3ubuntu5;
+- MediaMTX v1.20.1;
+- Nginx 1.24.0;
+- Python 3.12.3;
+- Node 22.23.2 / npm 10.9.8;
+- OpenSSH 9.6p1;
+- sqlite3 CLI absent, libsqlite3 present;
+- current selector SHA a852e30b78b4c33f6adaa2bd4b7715ecac5ba32cb4b24c1a2ef103df2fb4fa40;
+- current selector syntax checks with only unused-local warning;
+- emergency-direct service is FAILED;
+- selector and shadow are active;
+- authority candidate, edge bridge, operator API and V8 control bridge are also active;
+- thematic playout services are active.
+
+RESET-04 classification updated:
+**FALHOU** — not production recovery.
+
+New strategy:
+1. freeze MediaMTX v1.20.1 and FFmpeg 6.1.1 during recovery;
+2. do not expand Liquidsoap 2.2.4 config;
+3. stage Liquidsoap 2.4.5 in isolation;
+4. compare Harbor 2.4.5 against dedicated Icecast2 ingest, both on non-public paths;
+5. no promotion before 6h + 24h soak.
