@@ -2,7 +2,7 @@
 import base64, hashlib, http.client, json, os, re, sqlite3, xml.etree.ElementTree as ET
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 HOST="127.0.0.1"
 PORT=8796
@@ -151,7 +151,27 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Length",str(len(b)));self.send_header("Cache-Control","no-store")
         self.end_headers();self.wfile.write(b)
     def do_GET(self):
-        p=urlparse(self.path).path
+        u=urlparse(self.path);p=u.path
+        if p==f"/v1/exists/{STATION}":
+            q=parse_qs(u.query);sha=(q.get("sha256") or [""])[0].lower()
+            try:size=int((q.get("size") or ["-1"])[0])
+            except Exception:size=-1
+            present=False;origin="missing"
+            if re.fullmatch(r"[0-9a-f]{64}",sha) and MEDIA_DB.is_file():
+                c=sqlite3.connect("file:"+str(MEDIA_DB)+"?mode=ro",uri=True,timeout=3)
+                c.row_factory=sqlite3.Row
+                try:
+                    a=c.execute("select object_path,size_bytes from assets where sha256=?",(sha,)).fetchone()
+                    if a and os.path.isfile(a["object_path"]) and (size<0 or os.path.getsize(a["object_path"])==size):
+                        present=True;origin="object_store"
+                    if not present:
+                        for r in c.execute("select source_path,size_bytes,mtime_ns from repository_index where sha256=?",(sha,)):
+                            if os.path.isfile(r["source_path"]):
+                                st=os.stat(r["source_path"])
+                                if st.st_size==r["size_bytes"] and st.st_mtime_ns==r["mtime_ns"] and (size<0 or st.st_size==size):
+                                    present=True;origin="repository";break
+                finally:c.close()
+            self.sendj(200,{"ok":True,"sha256":sha,"present":present,"origin":origin});return
         if p=="/health":
             self.sendj(200,{"ok":True,"service":"studiosat-edge-bridge","version":1,"station":STATION})
             return
@@ -160,6 +180,33 @@ class H(BaseHTTPRequestHandler):
             except Exception as e:self.sendj(500,{"ok":False,"error":"plan_failed","detail":repr(e)})
             return
         self.sendj(404,{"error":"not_found"})
+    def do_POST(self):
+        p=urlparse(self.path).path
+        if p!=f"/v1/register/{STATION}":
+            self.sendj(404,{"error":"not_found"});return
+        try:
+            n=int(self.headers.get("Content-Length","-1"))
+            if n<0 or n>65536: raise ValueError("invalid_size")
+            q=json.loads(self.rfile.read(n).decode("utf-8"))
+            sha=str(q.get("sha256") or "").lower()
+            source_path=str(q.get("source_path") or "")
+            filename=str(q.get("filename") or os.path.basename(source_path.replace("\\","/")))
+            media_class=str(q.get("media_class") or "ACTIVE_PLAYLIST")
+            if not re.fullmatch(r"[0-9a-f]{64}",sha): raise ValueError("invalid_sha")
+            if not MEDIA_DB.is_file(): raise ValueError("db_missing")
+            c=sqlite3.connect(str(MEDIA_DB),timeout=3)
+            try:
+                a=c.execute("select object_path from assets where sha256=?",(sha,)).fetchone()
+                if not a or not os.path.isfile(a[0]):
+                    self.sendj(409,{"error":"asset_not_materialized","sha256":sha});return
+                c.execute("""insert or replace into sources(source_path,sha256,filename,media_class,updated_at_utc)
+                             values(?,?,?,?,datetime('now'))""",(source_path,sha,filename,media_class))
+                c.commit()
+            finally:c.close()
+            self.sendj(200,{"ok":True,"registered":True,"sha256":sha});return
+        except Exception as e:
+            self.sendj(400,{"error":"register_failed","detail":repr(e)});return
+
     def do_PUT(self):
         p=urlparse(self.path).path
         if p!=f"/v1/upload/{STATION}":
