@@ -1168,3 +1168,27 @@ RESET-04 behavior:
 - starts direct ffmpeg bridge radioprincipal-ns1 -> radioprincipal;
 - requires public RTMP and HLS;
 - auto-rolls back to selector if direct bridge does not publish.
+
+
+## MASTER XRAY / POST-MORTEM / STRATEGY — 2026-09-18
+
+Relatório mestre criado:
+`docs/10-radio/RADIOPRINCIPAL-MASTER-XRAY-POSTMORTEM-STRATEGY-2026-09-18.md`
+commit `44514d662d4fc4e9da51cc9966954b83bd3f9484`.
+
+Auditoria de compatibilidade read-only criada:
+`scripts/radioprincipal/reset/RESET05-SOFTWARE-COMPATIBILITY-AUDIT-READONLY.sh`
+commit `2faeab503240399eedd585a6e472d3a80a663ddc`.
+
+Mudança de estratégia:
+- recuperação de áudio antes de reconstrução;
+- congelar promoções C12-C26/V8;
+- Liquidsoap 2.2.4-1+dev passa a ser considerado runtime legado para recuperação;
+- testar Liquidsoap 2.4.5 em staging isolado antes de qualquer upgrade de produção;
+- RadioBOSS 7.2.2.0 deve ser avaliado para atualização controlada para 7.2.5;
+- FFmpeg 6.1.1 não é alvo primário de upgrade neste momento;
+- MediaMTX deve ter versão exata coletada antes de qualquer alteração;
+- compatibilidade de versão/documentação vira gate obrigatório;
+- rádios temáticas deixam de ter playlist mínima em loop como arquitetura final.
+
+RESET-04 permanece PREPARADO NO GITHUB até existir evidência de execução.
