@@ -66,10 +66,12 @@ fi
 systemctl reload ssh.service 2>/dev/null || systemctl reload sshd.service
 
 echo '===== PLAN ====='
-curl -fsS http://127.0.0.1:8796/v1/plan/radioprincipal |
-python3 - <<'PY'
+PLAN_TMP="$(mktemp /root/.c24-plan.XXXXXX.json)"
+trap 'rm -f "$PLAN_TMP"' EXIT
+curl -fsS http://127.0.0.1:8796/v1/plan/radioprincipal -o "$PLAN_TMP"
+python3 - "$PLAN_TMP" <<'PY'
 import json,sys
-d=json.load(sys.stdin);items=d.get('items',[])
+d=json.load(open(sys.argv[1],encoding='utf-8'));items=d.get('items',[])
 print('PLAN_COUNT='+str(len(items)))
 print('PHYSICAL='+str(sum(not x.get('virtual') for x in items)))
 print('PRESENT='+str(sum((not x.get('virtual')) and x.get('present') for x in items)))
