@@ -583,7 +583,7 @@ class Playout:
 
     def dec_start(self,path,seek=0.0,index=None):
         self.dec_stop()
-        cmd=["/usr/bin/ffmpeg","-hide_banner","-loglevel","error","-nostdin"]
+        cmd=["/usr/bin/ffmpeg","-hide_banner","-loglevel","error","-nostdin","-re"]
         if seek>0:
             cmd+=["-ss",f"{seek:.3f}"]
         cmd += [
