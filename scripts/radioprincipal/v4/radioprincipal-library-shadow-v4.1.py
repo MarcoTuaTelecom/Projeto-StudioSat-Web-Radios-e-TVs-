@@ -8,6 +8,7 @@ import selectors
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -594,10 +595,77 @@ class Shadow:
         self.dec_stop()
         safe_term(self.pub)
 
+def selftest():
+    global ROOTS, INDEX
+    old_roots=ROOTS
+    old_index=INDEX
+    try:
+        with tempfile.TemporaryDirectory(prefix="studiosat-v41-selftest-") as td:
+            root=Path(td)/"radio-principal"
+            store=Path(td)/"mirror-store"
+            grade=root/"grade"/"manha"
+            grade.mkdir(parents=True)
+            store.mkdir(parents=True)
+
+            target=store/"0123456789abcdef.mp3"
+            target.write_bytes(b"not-real-audio-selftest")
+            alias=grade/"10 ELIS REGINA - ALÔ ALÔ MARCIANO.mp3"
+            alias.symlink_to(target)
+
+            ROOTS=[root,store]
+            INDEX=Path(td)/"library-index.json"
+            idx=scan_library()
+            aliases=[x for x in idx["files"] if x["path"]==str(alias.absolute())]
+            assert aliases, "symlink alias path was lost"
+            assert aliases[0]["basename"].startswith("10 ELIS REGINA"), "alias basename lost"
+
+            t=ET.Element("TRACK")
+            c=ET.SubElement(t,"FILENAME")
+            c.text=r"C:\RadioStudioSatWeb\Seg_Sex_0730_1200\10 ELIS REGINA - ALO ALO MARCIANO.mp3"
+            assert track_attr(t,"FILENAME").startswith("C:"), "child-text parser failed"
+
+            item={
+                "virtual":False,
+                "source_basename":"10 ELIS REGINA - ALO ALO MARCIANO.mp3",
+                "artist":"Elis Regina",
+                "title":"Alô Alô Marciano",
+                "itemtitle":"Elis Regina - Alô Alô Marciano",
+            }
+            resolved=resolve_item(dict(item),build_maps(idx),idx)
+            assert resolved["available"], "exact normalized alias resolution failed"
+            assert resolved["local_path"]==str(alias.absolute()), "wrong alias selected"
+
+            fuzzy=dict(item)
+            fuzzy["source_basename"]="10 ELIS REGINA ALO-ALO MARCIANO (RADIO).mp3"
+            fuzzy["title"]="Alo Alo Marciano"
+            resolved2=resolve_item(fuzzy,build_maps(idx),idx)
+            assert resolved2["available"], "fuzzy resolution failed"
+
+            virt={
+                "virtual":True,
+                "source_basename":"saytime=HoraCertaSegSextManha",
+                "artist":"","title":"","itemtitle":""
+            }
+            rv=resolve_item(virt,build_maps(idx),idx)
+            assert rv["available"] and rv["resolution"]=="virtual", "virtual item handling failed"
+
+        print("SELFTEST=PASS")
+        return 0
+    except Exception as exc:
+        print("SELFTEST=FAIL")
+        print("SELFTEST_ERROR="+repr(exc))
+        return 90
+    finally:
+        ROOTS=old_roots
+        INDEX=old_index
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--check",action="store_true")
+    ap.add_argument("--selftest",action="store_true")
     args=ap.parse_args()
+    if args.selftest:
+        sys.exit(selftest())
     BASE.mkdir(parents=True,exist_ok=True)
     idx=scan_library()
     q=build_queue(idx)
