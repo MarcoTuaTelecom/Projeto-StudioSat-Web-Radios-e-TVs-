@@ -1437,3 +1437,32 @@ commit `83b83617de372c0371838f93f588bc83cf814561`.
 
 Regra:
 **MP3 já presente no NS1 deve resolver localmente antes de qualquer classificação missing ou nova transferência.**
+
+
+## V4 library sync + effective queue + synchronized shadow built
+
+User requested execution instead of further design discussion.
+
+V4 now implements the missing editorial/data plane:
+- scans the actual NS1 folders already populated by operator;
+- builds `library-index.json`;
+- parses RadioBOSS `playlist.json` and `playback.json`;
+- resolves local MP3s before declaring missing;
+- virtual items are not classified as physical missing;
+- builds `effective-queue.json`;
+- maps current + next + playlistpos + pos_ms;
+- starts synchronized shadow from local resolved media;
+- hot-sync seeks to RadioBOSS playback position;
+- stale control falls back to autonomous sequential queue;
+- publishes to the existing configured `radioprincipal-ns1` path;
+- swaps only the old shadow service; V3.2 live public core is left running;
+- preflight requires current/next resolved and >=80% media coverage;
+- automatic rollback restores old shadow if the new RTMP shadow does not come up.
+
+Artifacts:
+- engine commit `a64630120a3e62efa05351a961892f71a4df98fe`;
+- installer commit `5bd8de97c1b17764d214ae1a5c275d22cf65a09c`;
+- rollback commit `c5a28b83d7f0b764e671641647f9095f0b82a129`;
+- docs commit `d6696475f05de641c7869c89ad92dec3b1f3b4fe`.
+
+Status: BUILT IN GITHUB, not yet executed on NS1.
