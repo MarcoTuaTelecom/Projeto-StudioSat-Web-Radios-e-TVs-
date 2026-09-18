@@ -1411,3 +1411,29 @@ Artifacts:
 - docs commit `c285d8347b8657c34b80f31d0ba9e7c89195886d`.
 
 Status: BUILT IN GITHUB, NOT YET EXECUTED.
+
+
+## Gap funcional explicitado — biblioteca RadioBOSS / NS1
+
+Mesmo com V3.2 ativo no plano de áudio, o projeto ainda NÃO está concluído porque o runtime público não consome a biblioteca/playlist do RadioBOSS como modelo editorial.
+
+Estado:
+- `radioboss-sync/current/{playlist,schedule,librarymanifest,playback,heartbeat}.json` existe;
+- MP3s já existem fisicamente no NS1 em pastas correspondentes;
+- V3.2 resolve transporte/live/fallback;
+- production shadow ainda é legado e não usa Canonical Effective Queue.
+
+Próximo bloco obrigatório:
+1. Library Indexer;
+2. RadioBOSS Resolver;
+3. Canonical Effective Queue;
+4. Shadow Execution Engine;
+5. Asset Sync só para missing real;
+6. failover editorial transparente.
+
+Plano canônico:
+`docs/10-radio/RADIOPRINCIPAL-LIBRARY-SYNC-EXECUTION-PLAN-v1.md`
+commit `83b83617de372c0371838f93f588bc83cf814561`.
+
+Regra:
+**MP3 já presente no NS1 deve resolver localmente antes de qualquer classificação missing ou nova transferência.**
