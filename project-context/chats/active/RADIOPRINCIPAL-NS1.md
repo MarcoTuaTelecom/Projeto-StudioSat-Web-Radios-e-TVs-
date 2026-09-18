@@ -830,3 +830,28 @@ Windows:
 
 Estado neste registro:
 PREPARADO NO GITHUB. Ainda não classificar como INSTALADO/ATIVO/VALIDADO sem saída da execução.
+
+
+## RESET BASELINE — 2026-09-18
+
+Decisão operacional: começar do zero a partir do estado real do NS1.
+
+Scripts C12–C26 ficam congelados como histórico e não devem ser executados durante o reset sem decisão explícita baseada em nova evidência.
+
+Nova sequência:
+1. RESET-00 — full XRAY NS1 read-only;
+2. RESET-01 — recuperação mínima RadioBOSS -> Harbor -> selector -> radioprincipal -> HLS;
+3. RESET-02+ — reconstrução somente a partir da baseline comprovada.
+
+Artefatos:
+- `scripts/radioprincipal/reset/RESET00-NS1-FULL-XRAY-READONLY.sh`
+  - commit `c7c51f22eadbc9a979fa7227d83bc45f5a7a44c4`
+- `scripts/radioprincipal/reset/RESET01-NS1-RECOVER-RADIOBOSS.sh`
+  - commit `9e2e5da1ae5f0962861ff9ab4199218c921089c3`
+- `scripts/radioprincipal/reset/RESET01-WINDOWS-LIVE-TUNNEL.ps1`
+  - commit `c7ba020c53e94dd371ab2588aabba17a38a0c96e`
+- `docs/10-radio/RADIOPRINCIPAL-RESET-BASELINE-2026-09-18.md`
+  - commit `ccb3b3463b59fcc68c40bf08f421b727a2428c00`
+
+Meta imediata:
+não corrigir fallback/playlist ainda; primeiro colocar a Rádio Principal no ar pelo RadioBOSS e capturar o raio X completo do NS1.
