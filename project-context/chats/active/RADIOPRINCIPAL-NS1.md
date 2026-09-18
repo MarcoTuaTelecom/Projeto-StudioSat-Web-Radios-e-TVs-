@@ -1348,3 +1348,30 @@ Backup:
 
 Interpretation:
 V3.1 is now the active production path for Rádio Principal. The old Liquidsoap selector is no longer the public selector. V3.1 receives RadioBOSS through Icecast2 over the existing SSH tunnel, keeps a persistent FFmpeg publisher to MediaMTX, starts from NS1 shadow for continuity, and fails back to RadioBOSS after stability gating.
+
+
+## V3.2 built — PCM-verified RadioBOSS live
+
+Reason:
+V3.1 reported `PUBLIC_SOURCE=live`, but operator reported the audible public output still was not RadioBOSS. V3.2 removes any ambiguity between “mount exists” and “actual RadioBOSS PCM is feeding public”.
+
+V3.2:
+- keeps two decoders hot:
+  - live = Icecast2 RadioBOSS source;
+  - fallback = radioprincipal-ns1;
+- drains both continuously;
+- promotes to live only after 5 seconds of continuous PCM bytes from the RadioBOSS decoder;
+- live PCM gap >= 0.50s forces fallback;
+- a single persistent public FFmpeg encoder remains connected to MediaMTX;
+- state file reports selected source + byte counters + live/fallback audio age;
+- installer requires RadioBOSS audio via ffprobe BEFORE cutover;
+- if RadioBOSS source is absent, installer restarts Icecast once and waits for RadioBOSS reconnect;
+- if RadioBOSS still does not deliver audio, installer aborts before replacing V3.1.
+
+Artifacts:
+- core V3.2 commit `a16993b4391bf5f562a49633ad3d36781e2518f1`;
+- installer V3.2 commit `c7dfaf166dfb980b6f3741755f805ee903d1d079`;
+- rollback V3.2 commit `55a85e5426ac5f420dc3b2ea6b5bb40d9f21b87d`;
+- docs commit `28c2c042310a48806d3fca609ddbdda5e7e8b5fc`.
+
+Status: BUILT IN GITHUB, NOT YET EXECUTED.
