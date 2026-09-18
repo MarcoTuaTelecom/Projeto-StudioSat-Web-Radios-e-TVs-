@@ -543,3 +543,32 @@ P7 selector V2 anti-flap;
 P8 soak;
 P9 cutover;
 P10 legacy cleanup.
+
+
+## Registro C21 — P1 RadioBOSS LIVE Stability Probe (PREPARADO)
+
+Prioridade em execução: P1 — estabilizar o áudio LIVE RadioBOSS -> túnel -> Harbor 18005 -> selector, sem tocar na produção.
+
+Artefatos preparados:
+- `scripts/radioprincipal/v2/C21-P1-RADIOBOSS-LIVE-STABILITY-PROBE.sh`
+  - commit `40fed07b39ee619df8ff525b014ba159ec057869`
+- documentação:
+  - `docs/10-radio/RADIOPRINCIPAL-C21-P1-LIVE-STABILITY-PROBE.md`
+  - commit `66e36d40654c8ba8f145af0c2e9eed0414e2124d`
+
+O probe é read-only contra produção e mede:
+- listener/established da porta 18005;
+- selector/shadow ativos;
+- freshness do playback de controle;
+- RTMP público/shadow;
+- switches RB/NS1/blank;
+- metadata Harbor;
+- Feeding stopped / Error while reading;
+- percentual de amostras com Harbor estabelecido.
+
+Estados:
+- CRITICAL_BLANK;
+- UNSTABLE;
+- SAMPLE_PASS (janela curta; não substitui soak).
+
+Nenhum P2/P3/P4 será promovido para produção antes de fechar P1.
