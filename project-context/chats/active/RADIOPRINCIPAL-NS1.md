@@ -948,3 +948,47 @@ Artifacts:
   - commit `baf1b1c2bf11cd762b1c611b1652d7c6cd51c4c9`.
 
 Next action: execute RESET-01B, then classify baseline only from its output.
+
+
+## RESET-01B execution result — 2026-09-18
+
+User executed RESET-01B successfully through config validation and public fallback normalization.
+
+Confirmed:
+- selector active before change;
+- Harbor 18005 LISTEN;
+- RadioBOSS ESTABLISHED before change;
+- current public fallback before change: `[rb, local]`;
+- candidate build OK;
+- Liquidsoap check OK;
+- installed public fallback: `[rb, security]`;
+- selector restarted once;
+- Harbor LISTEN returned after 14s;
+- RadioBOSS ESTABLISHED returned after 21s;
+- local grade removed from public fallback;
+- HLS READY;
+- latest observed switch at 19:10:14Z was to `radioprincipal_rb_harbor`.
+
+Remaining failure:
+- repeated Harbor decoder failures:
+  `Feeding stopped: Avutil.Error(Invalid data found when processing input)`;
+- public source flapped between `radioprincipal_rb_harbor` and `radioprincipal_emergency_blank`;
+- examples:
+  - RB at 19:07:50;
+  - blank at 19:08:16;
+  - RB at 19:08:20;
+  - blank at 19:09:23;
+  - RB at 19:09:35;
+  - blank at 19:09:55;
+  - RB at 19:10:14;
+- script result:
+  `RESULTADO=RESET01B_BASELINE_APPLIED_LIVE_NEEDS_RECOVERY`.
+
+Interpretation:
+- wrong local playlist is no longer a public source;
+- remaining outage/flap is now isolated to the RadioBOSS LIVE ingest path, specifically Harbor/decode/source continuity;
+- MediaMTX/HLS path remained available;
+- do not reintroduce local playlist while diagnosing LIVE ingest.
+
+Next workstream:
+RESET-01C = stabilize RadioBOSS LIVE ingest without changing editorial/fallback logic.
