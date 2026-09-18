@@ -1,5 +1,29 @@
 # Studio Sat — Próximos passos
 
+## PRIORIDADE ATUAL — Rádio Principal / RadioBOSS / NS1
+
+A sequência abaixo tem precedência operacional sobre as fases genéricas deste arquivo enquanto o workstream `RADIOPRINCIPAL-NS1` estiver em recuperação/reconstrução.
+
+- [x] P0 — formalizar no-downtime e proteger produção.
+- [ ] P1 — estabilizar LIVE RadioBOSS -> túnel -> Harbor 18005 e provar soak sem microflap.
+- [ ] P2 — construir Canonical Effective Queue com MP3 + itens virtuais + scheduler.
+- [ ] P3 — instalar/validar edge bridge C24 e agente automático Windows C25.
+- [ ] P3 — provar missing -> upload -> SHA256 -> READY em <=5s para current/next.
+- [ ] P4 — instalar/validar shadow V2 somente em `radioprincipal-v2-shadow`.
+- [ ] P5 — implementar e validar hora certa, temperatura, comerciais, vinhetas e scheduler.
+- [ ] P6 — construir Operator API final.
+- [ ] P6 — construir Operator Web UI.
+- [ ] P6 — implementar login, usuários, senha, MFA, RBAC.
+- [ ] P6 — implementar Transfer Manager, audit log e relatórios.
+- [ ] P7 — construir selector V2 com anti-flap em path de teste.
+- [ ] P8 — executar soak/comparação por horas/dias.
+- [ ] P9 — cutover controlado, somente com todos os gates aprovados.
+- [ ] P10 — classificar/remover legado somente após estabilidade comprovada.
+
+Referência obrigatória:
+`docs/10-radio/RADIOPRINCIPAL-MASTER-DOSSIER-V4.md`
+
+
 ## Fase 1 — Contexto e limites de responsabilidade
 
 - [x] Criar MASTER do projeto.
