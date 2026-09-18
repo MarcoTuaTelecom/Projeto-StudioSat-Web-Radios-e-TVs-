@@ -247,3 +247,40 @@ Durante reconstrução:
 
 Após homologação:
 - controles críticos são liberados somente para roles autorizadas.
+
+
+## Estado de implementação em 2026-09-18
+
+Este documento define **requisitos obrigatórios**, não funcionalidades já concluídas.
+
+### Já existe parcialmente
+- estrutura humana Manhã/Tarde/Noite;
+- scaffold de API de operação;
+- dados de playback/playlist/schedule no NS1;
+- media-transfer com SHA256;
+- logs técnicos em systemd/journal.
+
+### Ainda precisa ser construído/validado
+- frontend web operacional final;
+- login;
+- cadastro de usuários;
+- senha segura;
+- MFA;
+- roles;
+- RBAC;
+- sessões;
+- recuperação de senha;
+- programação por UI;
+- transfer manager;
+- progresso/ETA/retry/cancel;
+- audit log append-only;
+- relatórios;
+- exportação CSV/PDF;
+- manutenção autorizada;
+- controles de failover;
+- alertas;
+- dashboard de saúde;
+- API pública/privada documentada;
+- HTTPS/endereço operacional definitivo.
+
+Nenhum item acima pode ser anunciado como disponível até existir evidência de instalação e validação.
