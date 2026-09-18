@@ -327,3 +327,51 @@ Ação C12 preparada:
 - não apaga MP3, não reinicia MediaMTX e não reinicia selector.
 
 Regra: não deletar pastas de mídia até provar que nenhuma referência ativa depende delas. Primeiro consolidar um único store canônico e retirar players concorrentes; depois remover legado com evidência.
+
+
+## Registro V2-0 — reconstrução paralela sem downtime
+
+Regra absoluta adicionada em 2026-09-18:
+
+A Rádio Principal pública não pode ser interrompida por desenvolvimento, teste, migração ou validação.
+
+Produção congelada durante a reconstrução:
+- não reiniciar/parar `studiosat-radioprincipal-selector.service`;
+- não reiniciar/parar `studiosat-radioprincipal-shadow-ns1.service`;
+- não reiniciar `tps-mediamtx.service`;
+- não reiniciar Nginx;
+- não alterar Harbor 18005;
+- não alterar o path público `radioprincipal`;
+- não usar `radioprincipal-ns1` como superfície de desenvolvimento;
+- não apagar mídia existente durante a reconstrução.
+
+Toda engenharia nova será construída em paralelo sob:
+- código: `/opt/studiosat/radio-v2-next/radioprincipal/`;
+- estado: `/var/lib/studiosat/radio-v2-next/radioprincipal/`;
+- paths: `radioprincipal-v2-shadow` e `radioprincipal-v2-test`;
+- units: prefixo `studiosat-radioprincipal-v2-`.
+
+Documentação:
+- `docs/10-radio/RADIOPRINCIPAL-NO-DOWNTIME-REBUILD-V2.md`.
+
+Guard:
+- `scripts/radioprincipal/v2/NO-DOWNTIME-GUARD.sh`.
+
+Scaffold:
+- `scripts/radioprincipal/v2/README.md`.
+
+Motivação: alterações C12/C14 demonstraram que validar diretamente sobre o shadow/selector público pode causar silêncio ou alternância editorial. A partir deste registro, candidates não podem mais tocar produção.
+
+Arquitetura alvo V2:
+1. authority-reader;
+2. asset-reconciler;
+3. upload automático de missing a partir do PC da emissora;
+4. canonical-state;
+5. execution-engine;
+6. adapters de hora certa/temperatura/comerciais/scheduler;
+7. shadow publisher isolado;
+8. test selector isolado;
+9. soak test;
+10. cutover único com rollback.
+
+Nenhum cutover está autorizado até aprovação de todos os gates.
