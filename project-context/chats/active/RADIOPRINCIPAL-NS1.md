@@ -1466,3 +1466,51 @@ Artifacts:
 - docs commit `d6696475f05de641c7869c89ad92dec3b1f3b4fe`.
 
 Status: BUILT IN GITHUB, not yet executed on NS1.
+
+
+## V4 failed safely / V4.1 corrected and pre-tested
+
+V4 execution at 2026-09-18 21:32 UTC aborted before shadow cutover:
+- LIBRARY_FILES=769
+- QUEUE_TRACKS=165
+- MEDIA_COUNT=163
+- VIRTUAL_COUNT=2
+- AVAILABLE_COUNT=12
+- MISSING_COUNT=151
+- COVERAGE_PCT=7.36
+- current Elis Regina unresolved
+- next Cidade Negra resolved
+- FATAL=CURRENT_OR_NEXT_NOT_RESOLVED
+
+Root cause in V4 resolver:
+`scan_library()` used `p.resolve()` as the indexed path/name. Human grade entries can be symlinks to SHA-named mirror-store objects, so resolving the symlink destroyed the visible RadioBOSS-compatible filename. This explains why a library with 769 discovered entries only matched 12 queue items.
+
+V4.1 fix:
+- preserves the visible alias path/basename with `p.absolute()`;
+- stores the resolved target separately as `real_path`;
+- scans the complete `/srv/studiosat/radio-principal` tree plus mirror-store/ready;
+- normalizes accents/case/punctuation/numeric prefixes;
+- supports exact match first, then conservative fuzzy match;
+- parses TRACK fields both as XML attributes and child text;
+- keeps virtual items non-missing;
+- adds built-in self-test;
+- installer requires fresh RadioBOSS playlist/playback/librarymanifest;
+- installer requires current+next resolved, >=90% coverage, ffprobe of current+next, then changes only the canonical shadow service;
+- V3.2 public core remains active during preflight and shadow replacement.
+
+Pre-tests executed in isolated remote sandbox BEFORE user execution:
+- Python compile: PASS
+- installer `bash -n`: PASS
+- built-in engine self-test: PASS
+- functional fixture using exact failing pattern:
+  `10 ELIS REGINA - ALO ALO MARCIANO.mp3`
+  plus accented local alias `10 ELIS REGINA - ALÔ ALÔ MARCIANO.mp3`: PASS
+- next `11 CIDADE NEGRA - ONDE VOCÊ MORA.mp3`: PASS
+- virtual saytime item: PASS
+- fixture result: 2/2 media available, missing 0, coverage 100%, current/next READY.
+
+Artifacts:
+- V4.1 engine latest commit `f5644a0521f4ddc1af54189dc2bcd08cab610e33`;
+- V4.1 installer commit `281e2e937a77dcc0be941aa4c2fffeb0d1f7c742`.
+
+Status: V4.1 TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
