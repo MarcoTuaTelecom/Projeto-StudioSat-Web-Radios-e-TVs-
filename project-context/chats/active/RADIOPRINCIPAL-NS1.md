@@ -1559,3 +1559,38 @@ Artifacts:
 - V4.2 installer commit: `90aefc99144e901e722ae3cd405e44ea536f4745`.
 
 Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
+
+
+## V4.3 Windows live recovery built and tested
+
+V4.2 NS1 execution at 2026-09-18 21:53 UTC stopped before shadow mutation:
+- FATAL=RADIOBOSS_ICECAST_AUDIO_NOT_READY
+
+This means the blocker moved to the Windows live source path; NS1 cannot fabricate RadioBOSS live audio when the RadioBOSS encoder/tunnel is disconnected.
+
+Built Windows recovery:
+`scripts/radioprincipal/windows/StudioSat-RadioPrincipal-LIVE-RECOVER-V4.3.ps1`
+commit `1369fb6ec0dc75a92e7779e1051b090919337635`.
+
+Behavior:
+- validates RadioBOSS API;
+- kills only existing StudioSat 18005 SSH forwards;
+- recreates exactly one 127.0.0.1:18005 -> NS1:18005 SSH tunnel using known StudioSat key candidates;
+- finds the RadioBOSS encoder configured for port 18005 via official encoderstatus/getencoder API;
+- sets encoder source to Audio Mix;
+- cleanly disconnects/reconnects only that encoder using RadioBOSS scheduler/API commands;
+- requires encoder status active/connected without error;
+- confirms current RadioBOSS playback;
+- restarts the V8 control-agent task/process;
+- requires fresh playback at NS1 within 10 seconds.
+
+Tests executed off-production:
+- PowerShell 7.6.6 parser: PASS;
+- script built-in selftest: PASS;
+- SHA256 tested: `d9fa94932e3bb1fc23b72ab85be87d127d56801a9e1320c45a1ff82f12c5dc08`.
+
+Official RadioBOSS docs verified in 2026-09-18:
+- Remote Control API supports `encoderstatus` and `getencoder`;
+- scheduler/API commands support `connect N`, `disconnect N`, and `setencodersource 0`.
+
+Status: TESTED OFF-PRODUCTION, requires execution on the Windows RadioBOSS PC because that is where the encoder, local tunnel and control agent live.
