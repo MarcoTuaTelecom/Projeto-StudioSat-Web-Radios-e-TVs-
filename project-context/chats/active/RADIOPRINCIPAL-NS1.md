@@ -462,3 +462,49 @@ Observação crítica do C18:
 - current/next físicos estão resolvidos;
 - a divergência de fila permanece porque `playlistpos` inclui itens virtuais e o media-map físico não;
 - portanto estes repositórios estabilizam assets/programas, mas não substituem a futura canonical effective queue/execution engine.
+
+
+## Registro C20 — repositório operacional humano + API do técnico (PREPARADO, NÃO INSTALADO)
+
+Correção de governança:
+- nunca tratar script versionado no GitHub como se já estivesse instalado/executado no NS1;
+- estado deste C20 neste registro: preparado/versionado, aguardando execução explícita no NS1.
+
+Novo caminho humano oficial proposto:
+- `/srv/studiosat/radio-principal/`
+
+Estrutura:
+- `grade/manha`
+- `grade/tarde`
+- `grade/noite`
+- `grade/ATUAL`
+- `elementos/comerciais`
+- `elementos/vinhetas`
+- `elementos/hora-certa`
+- `elementos/temperatura`
+- `operacao/importar`
+- `operacao/quarentena`
+- `estado`
+
+Componentes preparados:
+- `scripts/radioprincipal/v2/program-repository-human-sync.py`
+  - commit `5a3cb21a0e35bad5b29eb3cf9f1b8552bffc7d05`
+- `scripts/radioprincipal/v2/operator-api.py`
+  - commit `8cabbb2b4f793796076f3b935221201670e8f4aa`
+- `scripts/radioprincipal/v2/C20-PROVISION-HUMAN-REPOSITORY-AND-API.sh`
+  - commit `05b50241441c966a991badd5d6e617e8782db678`
+- documentação:
+  - `docs/10-radio/RADIOPRINCIPAL-OPERACAO-HUMANA-E-API.md`
+  - commit `1601a4bf4e28499a10c0cbd7b82fa3d08367e701`
+
+Safety do C20:
+- cria apenas árvore operacional nova e units V2;
+- não reinicia selector;
+- não reinicia shadow público;
+- não reinicia MediaMTX;
+- não reinicia Nginx;
+- não altera Harbor;
+- API local em 127.0.0.1:8810;
+- endpoints de produção ficam bloqueados (HTTP 423) durante reconstrução.
+
+O sync inicial pode semear Manhã/Tarde/Noite usando generations históricos + media-map atual, por hardlink quando possível, sem sobrescrever silenciosamente arquivo manual conflitante.
