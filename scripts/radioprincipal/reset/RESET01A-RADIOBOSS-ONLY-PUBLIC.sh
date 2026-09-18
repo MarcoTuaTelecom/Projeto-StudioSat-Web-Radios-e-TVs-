@@ -18,6 +18,13 @@ echo '===== PRECHECK ====='
 systemctl is-active "$SVC"
 ss -ltnp | grep ':18005' || { echo 'ERRO=HARBOR_NOT_LISTENING'; exit 20; }
 
+if ! ss -tn state established 2>/dev/null | grep -q ':18005'; then
+  echo 'ERRO=RADIOBOSS_NOT_ESTABLISHED_BEFORE_CHANGE'
+  echo 'ACTION=RUN_RESET01_WINDOWS_LIVE_TUNNEL_FIRST'
+  exit 22
+fi
+echo 'RADIOBOSS_ESTABLISHED_BEFORE_CHANGE=YES'
+
 if ! grep -Fq '[rb, local, security]' "$CFG"; then
   echo 'ERRO=EXPECTED_SELECTOR_PATTERN_NOT_FOUND'
   grep -nE 'fallback|\[rb|radioprincipal_local_grade' "$CFG" || true
@@ -40,8 +47,14 @@ echo '===== VALIDATE CONFIG ====='
 set -a
 . "$ENV"
 set +a
-/usr/bin/liquidsoap --check "$CFG"
-echo 'LIQUIDSOAP_CHECK=OK'
+if /usr/bin/liquidsoap --check "$CFG"; then
+  echo 'LIQUIDSOAP_CHECK=OK'
+else
+  echo 'LIQUIDSOAP_CHECK=FAILED_ROLLBACK_CONFIG'
+  cp -a "$BK/radioprincipal-selector.liq.before" "$CFG"
+  echo 'ROLLBACK_CONFIG=APPLIED'
+  exit 23
+fi
 
 echo '===== RESTART SELECTOR ONCE ====='
 systemctl restart "$SVC"
