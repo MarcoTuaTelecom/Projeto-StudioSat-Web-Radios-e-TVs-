@@ -1315,3 +1315,36 @@ Artifacts:
   commit `d3c6aa15c414ece8f6a97ea3b2969ace6dc0e997`.
 
 Status: BUILT IN GITHUB, NOT YET EXECUTED.
+
+
+## V3.1 cutover executed successfully — 2026-09-18T20:57Z
+
+Execution evidence:
+- shadow RTMP ready before cutover;
+- Icecast 2.4.4 present;
+- Python core compiled;
+- Icecast preflight on 127.0.0.1:18015 passed;
+- fallback decode + encoder preflight passed;
+- old selector was stopped/disabled for cutover;
+- V3.1 Icecast acquired 127.0.0.1:18005 after 2s;
+- V3.1 continuous public core started;
+- public RTMP became READY after 4s;
+- source began as `fallback`;
+- source transitioned automatically to `live` after ~14s;
+- final:
+  - CORE=active
+  - ICECAST=active
+  - SHADOW=active
+  - OLD_SELECTOR=inactive
+  - PUBLIC_SOURCE=live
+  - PUBLIC_RTMP=READY
+  - RADIOPRINCIPAL_V31=ACTIVE
+  - RESULTADO=RADIOPRINCIPAL_V31_ON_AIR
+- HLS local probe had not yet generated playlist inside the installer window:
+  `PUBLIC_HLS=PENDING_LOCAL_GENERATION`.
+
+Backup:
+`/root/studiosat-backups/V31-CUTOVER-20260918T205651Z`.
+
+Interpretation:
+V3.1 is now the active production path for Rádio Principal. The old Liquidsoap selector is no longer the public selector. V3.1 receives RadioBOSS through Icecast2 over the existing SSH tunnel, keeps a persistent FFmpeg publisher to MediaMTX, starts from NS1 shadow for continuity, and fails back to RadioBOSS after stability gating.
