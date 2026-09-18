@@ -92,3 +92,17 @@ Nunca gravar no bridge:
 - dump não sanitizado.
 
 Registrar apenas caminhos, nomes de segredo/variável e evidências sanitizadas.
+
+
+## Bootstrap especial — RADIOPRINCIPAL-NS1
+
+Para qualquer nova conversa desta frente, a leitura obrigatória passa a ser:
+
+1. `project-context/00-MASTER.md`;
+2. `project-context/02-DECISIONS.md`;
+3. `docs/10-radio/RADIOPRINCIPAL-MASTER-DOSSIER-V4.md`;
+4. `docs/10-radio/RADIOPRINCIPAL-REBUILD-BACKLOG-AND-GATES-V1.md`;
+5. `project-context/chats/active/RADIOPRINCIPAL-NS1.md`;
+6. evidência operacional mais recente.
+
+Regra: não reabrir arquitetura já decidida, não repetir scripts falhos e não tratar artefato apenas versionado no GitHub como instalado.
