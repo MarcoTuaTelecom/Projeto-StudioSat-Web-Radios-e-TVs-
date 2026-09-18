@@ -905,3 +905,46 @@ RESET-01A foi endurecido antes da execução:
 
 Novo commit:
 `f198858fffb6168acc2f70318ab9bc6f7c13c87e`.
+
+
+## RESET-01A execution result / RESET-01B prepared
+
+User executed RESET-01A at 2026-09-18T19:03Z.
+
+Observed:
+- selector service active;
+- Harbor 127.0.0.1:18005 LISTEN;
+- `RADIOBOSS_ESTABLISHED_BEFORE_CHANGE=YES`;
+- RESET-01A aborted BEFORE changing config because current selector fallback was no longer `[rb, local, security]`;
+- actual current fallback grep showed:
+  - line 22: `radioprincipal_local_grade`;
+  - line 28: `program = fallback(`;
+  - line 32: `[rb, local]`.
+
+Therefore RESET-01A safety gate worked and production config remained unchanged.
+
+RESET-01B prepared to normalize both observed variants:
+- `[rb, local]`;
+- `[rb, local, security]`;
+to:
+- `[rb, security]`.
+
+RESET-01B safety:
+- requires RadioBOSS ESTABLISHED before any config change;
+- creates candidate config;
+- guarantees security blank source;
+- runs `liquidsoap --check`;
+- installs only after check passes;
+- restarts selector once;
+- rolls back if selector/Harbor fails to return LISTEN;
+- does not restart MediaMTX/Nginx;
+- does not change playlists/media.
+
+Artifacts:
+- `scripts/radioprincipal/reset/RESET01B-RADIOBOSS-ONLY-PUBLIC.sh`
+  - commit initial `d6cab6b1b0a5bc645a298acf6ff9b7eca8e9309c`
+  - hardened verify `807e459b5ee8c0ac7c641ace3e474f111f4e0656`
+- `docs/10-radio/RESET01B-RADIOBOSS-ONLY-PUBLIC.md`
+  - commit `baf1b1c2bf11cd762b1c611b1652d7c6cd51c4c9`.
+
+Next action: execute RESET-01B, then classify baseline only from its output.
