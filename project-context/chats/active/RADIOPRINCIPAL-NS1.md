@@ -1224,3 +1224,55 @@ New strategy:
 3. stage Liquidsoap 2.4.5 in isolation;
 4. compare Harbor 2.4.5 against dedicated Icecast2 ingest, both on non-public paths;
 5. no promotion before 6h + 24h soak.
+
+
+## RADIO PRINCIPAL V3 — rewrite built for immediate cutover
+
+User explicitly stopped further diagnostic-first work and requested a rewrite focused on making the project operate now.
+
+RESET-06 evidence used only as build input:
+- current public `radioprincipal` RTMP was READY;
+- `radioprincipal-ns1` shadow RTMP was READY;
+- old Liquidsoap selector continued flapping between Harbor and emergency blank;
+- emergency-direct service had failed;
+- old selector still owns Harbor 18005 and public output.
+
+V3 design:
+```
+RadioBOSS
+ -> existing Windows 127.0.0.1:18005
+ -> existing SSH tunnel
+ -> NS1 127.0.0.1:18005
+ -> Icecast2 loopback ingest
+ -> RadioPrincipal V3 Core (Python supervisor)
+      primary = RadioBOSS live mount
+      fallback = radioprincipal-ns1
+ -> one FFmpeg publisher
+ -> MediaMTX radioprincipal
+ -> HLS
+```
+
+Key behavior:
+- removes Liquidsoap 2.2.4 from RadioBOSS ingest path;
+- no new public port;
+- reuses current source password and SSH;
+- starts public V3 on NS1 shadow immediately;
+- only fails back to RadioBOSS after 15s stable + ffprobe;
+- on live failure returns to shadow;
+- no local playlist fallback;
+- one public publisher only;
+- preflight publishes to radioprincipal-v3-test before cutover;
+- cutover auto-rolls back to old selector if public RTMP does not come back.
+
+Artifacts:
+- `scripts/radioprincipal/v3/radioprincipal-core.py`
+  commit `deea1370330ae0428c7fe04a5601010749956b6d`;
+- `scripts/radioprincipal/v3/INSTALL-RADIOPRINCIPAL-V3-NOW.sh`
+  commit `1b7092df29bae0e735f3c36d81f2d18dcbc4fd44`;
+- `scripts/radioprincipal/v3/ROLLBACK-RADIOPRINCIPAL-V3.sh`
+  commit `b1d1df21f992929ad63ccd7ae6599a6031f1aad4`;
+- `docs/10-radio/RADIOPRINCIPAL-V3-ARCHITECTURE.md`
+  commit `3cf3a193e0bced8ada253586c4e1dd5aef2dd256`.
+
+Status:
+**BUILT IN GITHUB, NOT YET EXECUTED ON NS1.**
