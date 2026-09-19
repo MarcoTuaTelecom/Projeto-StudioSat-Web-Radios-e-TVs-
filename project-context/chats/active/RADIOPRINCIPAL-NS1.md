@@ -1773,3 +1773,31 @@ Engine pre-tests:
 - AAC 48k stereo output validated.
 
 Status: built, not yet executed on NS1.
+
+
+## Full NS1 hardware-to-audio X-ray + bounded repair
+
+Built:
+- `scripts/operations/NS1-FULL-XRAY-AND-REPAIR-NOW.sh`
+- commit `8429bd14c6a54664d105f824d6c479ea6d335d2a`
+- bash syntax validated locally before delivery.
+
+Coverage:
+- hardware/OS/CPU/RAM/load/storage/inodes/mounts;
+- versions/network/routes/listeners;
+- 10s CPU/network throughput sample;
+- radio/media process topology and systemd resource counters;
+- Nginx + MediaMTX;
+- five radios: RTMP, local/public HLS, codec/sample-rate/channels/bitrate, 10s EBU-R128/true-peak probe, HLS sequence cadence, playlist entry count;
+- RadioBOSS control age/current/index/position;
+- 60-minute logs for relevant services.
+
+Bounded repairs:
+- MediaMTX restart only if down;
+- Nginx restart only if down and config valid;
+- thematic playout restart only if that station's RTMP is undecodable;
+- Radio Principal stale-control condition triggers stable no-reseek shadow installer, keeping V32 public;
+- post-repair verification of all five stations;
+- full bundle saved under `/root/studiosat-xray-<UTC>.tar.gz`.
+
+Status: built/tested for bash syntax, not yet executed on NS1.
