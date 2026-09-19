@@ -1744,3 +1744,32 @@ Artifacts:
 - docs commit `b35da68e729c408eee5a32f3a40882dcd3f557e0`.
 
 Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
+
+
+## Immediate stability correction — stable NS1 shadow
+
+Operator reports public NS1 audio is stuttering/skipping while RadioBOSS control is stale.
+
+Legacy shadow evidence shows playout can restart/seek based on matched_index/control changes. This is unsafe with stale/inconsistent control and can create audible jumps.
+
+Built stable shadow:
+- engine commit `f32c2a14a43e7be4c8d61c310dfb00dd2621776c`;
+- installer commit `29880e68182af9841fc3f49f70215d40773eab91`.
+
+Behavior:
+- fresh control => hot-sync;
+- stale control => select approximate start ONCE, then lock to local RadioBOSS queue;
+- no periodic stale-control re-seek;
+- no 1-second queue-induced decoder churn;
+- natural end-of-track advances to next available local item;
+- public V32 remains active while only the canonical shadow is replaced;
+- rollback restores previous shadow unit on failure.
+
+Engine pre-tests:
+- Python compile PASS;
+- built-in selftest PASS;
+- stale-control runtime PASS;
+- decoder start count stable (no repeated restart churn);
+- AAC 48k stereo output validated.
+
+Status: built, not yet executed on NS1.
