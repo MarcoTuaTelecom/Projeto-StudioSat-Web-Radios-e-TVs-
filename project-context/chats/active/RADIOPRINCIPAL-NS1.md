@@ -1710,3 +1710,37 @@ Artifacts:
 - V6 architecture docs commit `60a18f9c70632f1c8db6b0203fecd8566a7110bc`.
 
 Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
+
+
+## V7 standard RadioBOSS ingest — machine-independent live path
+
+User requirement:
+- no dependency on the current RadioBOSS PC;
+- no Studio Sat script/service/tunnel installed on RadioBOSS machines;
+- any RadioBOSS machine must be able to log in with standard broadcaster credentials and go on air.
+
+V7 implements:
+- standard Icecast2 source ingest over the existing public HTTPS 443 host;
+- host: radio.studiosatweb.com.br;
+- mount: /radioprincipal-rb;
+- TLS: yes;
+- username: source;
+- dedicated source password generated at install time and stored root-only on NS1;
+- Nginx proxies the source mount to loopback Icecast 127.0.0.1:18005;
+- V32 keeps consuming the same local /radioprincipal-rb mount, so no public-core rewrite is needed;
+- public V32 remains active during install;
+- preflight uses a separate /radioprincipal-preflight mount so production audio is not replaced by the test;
+- after successful preflight, the obsolete studiosat-rb-tunnel SSH login is denied server-side;
+- no PC agent, Windows service, or SSH tunnel is required for live transmission.
+
+Pre-tests before user execution:
+- installer bash syntax PASS;
+- Nginx server-block injection fixture PASS;
+- Icecast source-password patch fixture PASS;
+- policy gates PASS (PC_AGENT_REQUIRED=NO, SSH_TUNNEL_REQUIRED=NO, ANY_RADIOBOSS_MACHINE=YES).
+
+Artifacts:
+- installer commit `1f7b725c9cb63fa28661636c378830c3e5df1f56`;
+- docs commit `b35da68e729c408eee5a32f3a40882dcd3f557e0`.
+
+Status: TESTED OFF-PRODUCTION, NOT YET EXECUTED ON NS1.
