@@ -41,6 +41,9 @@
   let wantsPlayback = false;
 
   function rawUrl(station) {
+    if (station.id === 'radioprincipal') {
+      return 'https://radio.studiosatweb.com.br/radioprincipal-rb.aac';
+    }
     return '/listen-v2/live/' + encodeURIComponent(station.id) + '/stream.aac';
   }
 
