@@ -46,7 +46,7 @@ O `/listen/` legado permanece intacto até o V2 ser aprovado auditivamente.
 
 ## V2.2 — transporte sem MSE no portal
 
-O portal web usa como transporte primário `/listen-v2/live/<radio>.aac`.
+O portal web usa como transporte primário `/listen-v2/live/<radio>/stream.aac`.
 O Rust mantém um relay por emissora e o FFmpeg apenas copia os pacotes AAC
 (`-c:a copy`) do HLS já validado para ADTS contínuo. Não existe HLS.js/MSE
 no caminho normal do portal.
@@ -54,5 +54,5 @@ no caminho normal do portal.
 Teste direto:
 
 ```text
-https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal.aac
+https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal/stream.aac
 ```
