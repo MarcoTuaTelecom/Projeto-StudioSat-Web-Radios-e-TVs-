@@ -56,7 +56,7 @@ rollback(){
 trap rollback ERR
 
 [[ $EUID -eq 0 ]] || die "Execute como root."
-for c in install cp curl python3 nginx systemctl grep sha256sum ffmpeg; do
+for c in install cp curl python3 nginx systemctl grep sha256sum ffmpeg runuser; do
   command -v "$c" >/dev/null 2>&1 || die "Comando ausente: $c"
 done
 [[ -x "$BIN" ]] || die "Build ausente: $BIN"
@@ -86,10 +86,11 @@ declare -A PLAYLISTS=(
 for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
   pl="${PLAYLISTS[$r]}"
   [[ -s "$pl" ]] || die "$r sem playlist: $pl"
+  runuser -u tpsmedia -- test -r "$pl" || die "$r playlist sem leitura para tpsmedia: $pl"
 
   test_aac="$SNAP/$r-preflight.aac"
 
-  ffmpeg \
+  runuser -u tpsmedia -- ffmpeg \
     -hide_banner \
     -v error \
     -nostdin \
@@ -179,7 +180,7 @@ with urllib.request.urlopen(url,timeout=10) as resp:
     data=resp.read(7)
 if ctype.split(';')[0].strip()!='audio/aac':
     raise SystemExit(f"{name}: content-type inesperado: {ctype}")
-if transport!='raw-aac-adts-copy':
+if transport!='raw-aac-adts-direct':
     raise SystemExit(f"{name}: transporte inesperado: {transport}")
 if not (len(data)>=2 and data[0]==0xff and data[1]&0xf0==0xf0):
     raise SystemExit(f"{name}: sync ADTS invalido: {data.hex()}")
@@ -303,7 +304,7 @@ with urllib.request.urlopen(req,timeout=12,context=ctx) as resp:
     data=resp.read(7)
 if ctype.split(';')[0].strip()!='audio/aac':
     raise SystemExit(f"{name}: content-type publico inesperado: {ctype}")
-if transport!='raw-aac-adts-copy':
+if transport!='raw-aac-adts-direct':
     raise SystemExit(f"{name}: transporte publico inesperado: {transport}")
 if not (len(data)>=2 and data[0]==0xff and data[1]&0xf0==0xf0):
     raise SystemExit(f"{name}: sync ADTS publico invalido: {data.hex()}")
