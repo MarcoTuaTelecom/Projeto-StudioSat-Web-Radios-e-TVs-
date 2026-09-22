@@ -1,0 +1,24 @@
+[Unit]
+Description=Studio Sat V2 Rust Web Portal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/studiosat-v2
+Environment=STUDIOSAT_BIND=127.0.0.1:8792
+Environment=STUDIOSAT_STATIC_DIR=/opt/studiosat-v2/web/static
+Environment=RUST_LOG=studiosat_web=info,tower_http=info
+ExecStart=/opt/studiosat-v2/bin/studiosat-web
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/studiosat-v2
+
+[Install]
+WantedBy=multi-user.target
