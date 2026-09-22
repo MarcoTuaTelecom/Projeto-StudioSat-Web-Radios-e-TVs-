@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
-  <title>Studio Sat V2.2 RAW</title>
+  <title>Studio Sat V2.3 RAW</title>
   <link rel="stylesheet" href="/listen-v2/static/styles.css?v=2.2.0">
   <script defer src="/listen-v2/static/app.js?v=2.2.0"></script>
 </head>
 <body>
   <main class="shell">
     <header class="brand">
-      <div><p class="eyebrow">STUDIO SAT V2.2 · RAW AAC</p><h1>A música nos conecta</h1></div>
+      <div><p class="eyebrow">STUDIO SAT V2.3 · RAW AAC</p><h1>A música nos conecta</h1></div>
       <span id="engine" class="engine">motor: aguardando</span>
     </header>
 
@@ -48,9 +48,9 @@
     </section>
 
     <section class="technical">
-      <h3>Caminho de áudio V2.2</h3>
-      <code>HLS validado → FFmpeg -c:a copy → AAC/ADTS contínuo → HTTP → decoder nativo</code>
-      <p>O navegador não recebe segmentos HLS, não usa MediaSource e não executa HLS.js. O relay não reencoda.</p>
+      <h3>Caminho de áudio V2.3</h3>
+      <code>Playlist local → FFmpeg AAC-LC 128k/48k estéreo → ADTS contínuo → HTTP → decoder nativo</code>
+      <p>O navegador não recebe segmentos HLS, não usa MediaSource e não executa HLS.js. O caminho experimental não usa RTMP nem MediaMTX.</p>
       <p id="telemetry">rate=1.000 · buffer=0.0s · sessão=0</p>
       <p><a id="raw-link" href="#" target="_blank" rel="noopener">Abrir stream RAW desta emissora</a></p>
     </section>
