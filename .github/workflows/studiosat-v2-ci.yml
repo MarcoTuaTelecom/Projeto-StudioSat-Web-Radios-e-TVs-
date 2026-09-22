@@ -11,7 +11,7 @@ on:
 
 jobs:
   rust:
-    name: Rust web/core
+    name: Rust web/core/raw AAC
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -41,3 +41,22 @@ jobs:
         with:
           gradle-version: "9.6.0"
       - run: gradle :app:assembleDebug
+
+  ios-simulator:
+    name: iOS native AVPlayer compile
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: StudioSAT-V2/native/ios
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - run: >
+          xcodebuild
+          -project StudioSatV2.xcodeproj
+          -scheme StudioSatV2
+          -sdk iphonesimulator
+          -configuration Debug
+          CODE_SIGNING_ALLOWED=NO
+          build
