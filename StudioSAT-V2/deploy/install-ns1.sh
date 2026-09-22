@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 umask 022
 
-VERSION="1.2.1-RAW-AAC-ROUTE-FIX"
+VERSION="1.3.0-DIRECT-PLAYLIST-RAW"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT/target/release/studiosat-web"
 NGINX="/etc/nginx/conf.d/studiosat-radio.conf"
@@ -73,6 +73,52 @@ systemctl is-active --quiet studiosat-v2-web.service 2>/dev/null && touch "$SNAP
 sha256sum "$NGINX_BACKUP" > "$SNAP/SHA256SUMS.txt"
 echo "SNAPSHOT=$SNAP"
 
+say "0. PRE-FLIGHT DIRETO DAS CINCO PLAYLISTS"
+
+declare -A PLAYLISTS=(
+  [radioprincipal]="/srv/studiosat/radio-principal/playlists/atual.ffconcat"
+  [radiopop]="/srv/studiosat/radio-pop/playlists/atual.ffconcat"
+  [radiorock]="/srv/studiosat/radio-rock/playlists/atual.ffconcat"
+  [radioclassicas]="/srv/studiosat/radio-classicas/playlists/atual.ffconcat"
+  [radiocountry]="/srv/studiosat/radio-country/playlists/atual.ffconcat"
+)
+
+for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
+  pl="${PLAYLISTS[$r]}"
+  [[ -s "$pl" ]] || die "$r sem playlist: $pl"
+
+  test_aac="$SNAP/$r-preflight.aac"
+
+  ffmpeg \
+    -hide_banner \
+    -v error \
+    -nostdin \
+    -f concat \
+    -safe 0 \
+    -i "$pl" \
+    -t 2 \
+    -map 0:a:0 \
+    -vn -sn -dn \
+    -af "aresample=48000:async=0,asetpts=N/SR/TB" \
+    -c:a aac \
+    -profile:a aac_low \
+    -aac_coder twoloop \
+    -b:a 128k \
+    -ar 48000 \
+    -ac 2 \
+    -f adts \
+    -y "$test_aac"
+
+  python3 - "$test_aac" "$r" <<'PY'
+import sys
+p,name=sys.argv[1],sys.argv[2]
+with open(p,'rb') as f:
+    b=f.read(7)
+if not (len(b)>=2 and b[0]==0xff and b[1]&0xf0==0xf0):
+    raise SystemExit(f"{name}: ADTS preflight invalido: {b.hex()}")
+print(f"{name} PLAYLIST_TO_AAC=OK")
+PY
+done
 say "1. INSTALANDO BINARIO + STATIC"
 
 install -d -o root -g root -m 0755 "$OPT/bin"
@@ -279,5 +325,6 @@ say "INSTALACAO CONCLUIDA"
 echo "RESULTADO=OK"
 echo "SERVICE=studiosat-v2-web.service"
 echo "URL=https://www.radio.studiosatweb.com.br/listen-v2/"\necho "RAW_PRINCIPAL=https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal/stream.aac"
+echo "SOURCE_MODE=LOCAL_PLAYLIST_DIRECT"
 echo "REFERENCE=https://radio.studiosatweb.com.br/diag-bypass/"
 echo "SNAPSHOT=$SNAP"
