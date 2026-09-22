@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Studio Sat V2</title>
+  <link rel="stylesheet" href="/listen-v2/static/styles.css?v=2.0.0-a1">
+  <script defer src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js"></script>
+  <script defer src="/listen-v2/static/app.js?v=2.0.0-a1"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="brand"><div><p class="eyebrow">STUDIO SAT V2</p><h1>A música nos conecta</h1></div><span id="engine" class="engine">motor: aguardando</span></header>
+    <section class="hero">
+      <div class="live-line"><span class="live-dot"></span><span id="state">PRONTO</span></div>
+      <h2 id="station-name">Rádio Studio Sat</h2>
+      <p id="station-description">Selecione uma emissora e pressione ouvir.</p>
+      <div class="now"><strong id="artist">Studio Sat</strong><span id="track">Programação ao vivo</span></div>
+      <div class="vu" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <audio id="audio" preload="none" playsinline></audio>
+      <div class="controls"><button id="play" class="primary" type="button">▶ Ouvir</button><button id="mute" type="button">Som</button><button id="favorite" type="button">♡ Favoritar</button></div>
+    </section>
+    <section><div class="section-title"><h3>Emissoras</h3><small>HLS direto</small></div><div id="stations" class="station-grid"></div></section>
+    <section class="technical"><h3>Caminho de áudio</h3><code>HLS → mecanismo nativo/MSE → decoder do dispositivo → saída</code><p>Sem WebAudio, sem analisador PCM, sem time-stretch e sem service worker de mídia.</p></section>
+  </main>
+</body>
+</html>
