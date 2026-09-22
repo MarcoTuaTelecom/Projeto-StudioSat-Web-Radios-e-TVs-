@@ -2,11 +2,11 @@
 //!
 //! O V2.2 adiciona uma rota de menor nivel para radio:
 //!
-//! HLS publico ja validado -> FFmpeg demux/copy -> AAC/ADTS continuo
+//! Playlist MP3 local -> FFmpeg -> AAC/ADTS continuo
 //! -> HTTP chunked -> HTMLMediaElement/AVPlayer/Media3.
 //!
-//! O FFmpeg NAO reencoda: -c:a copy. O relay remove HLS/MSE do cliente
-//! e transmite somente os frames AAC que ja estavam no HLS.
+//! O transporte nao usa HLS, RTMP ou MediaMTX como fonte.
+//! FFmpeg faz a unica codificacao necessaria, uma vez, na borda do servidor.
 //!
 //! A aplicacao nunca acessa PCM, nunca altera sample rate e nunca altera
 //! playbackRate.
@@ -91,8 +91,11 @@ async fn live_aac(
             match rx.recv().await {
                 Ok(frame) => yield Ok::<Bytes, Infallible>(frame),
                 Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                    tracing::warn!(station=%id, skipped, "cliente raw AAC atrasou; descartando backlog");
-                    continue;
+                    // Politica V2.3: nunca drenar backlog para o ouvinte.
+                    // Encerra a conexao imediatamente para impedir audio
+                    // acumulado seguido de rajada acelerada.
+                    tracing::warn!(station=%id, skipped, "cliente atrasou; encerrando sessao sem backlog");
+                    break;
                 }
                 Err(broadcast::error::RecvError::Closed) => break,
             }
@@ -154,18 +157,19 @@ fn publish_adts_frames(buffer: &mut Vec<u8>, tx: &broadcast::Sender<Bytes>) -> u
     published
 }
 
-/// Mantem um unico demuxer FFmpeg por emissora.
+/// Mantem um encoder FFmpeg independente por emissora.
 ///
-/// Entrada: HLS ja aprovado pelo teste auditivo.
-/// Saida: mesmos pacotes AAC, somente remuxados para ADTS com -c:a copy.
+/// Entrada: playlist ffconcat local da propria radio.
+/// Saida: AAC-LC / ADTS continuo.
 ///
-/// Se o HLS ou a rede local falharem, o processo e recriado. Os ouvintes nao
-/// recebem backlog: continuam a partir dos proximos frames disponiveis.
-async fn relay_loop(id: String, source_url: String, tx: broadcast::Sender<Bytes>) {
+/// Nao existe HLS, RTMP ou MediaMTX entre a playlist e este relay.
+/// A cadencia e controlada por -re e o relogio do audio e reconstruido pela
+/// contagem real de samples, sem time-stretch.
+async fn relay_loop(id: String, playlist: String, tx: broadcast::Sender<Bytes>) {
     let ffmpeg = env::var("STUDIOSAT_FFMPEG").unwrap_or_else(|_| "/usr/bin/ffmpeg".to_string());
 
     loop {
-        tracing::info!(station=%id, source=%source_url, "iniciando relay AAC copy");
+        tracing::info!(station=%id, source=%playlist, "iniciando encoder AAC direto da playlist");
 
         let mut command = Command::new(&ffmpeg);
         command
@@ -173,23 +177,34 @@ async fn relay_loop(id: String, source_url: String, tx: broadcast::Sender<Bytes>
             .arg("-loglevel")
             .arg("warning")
             .arg("-nostdin")
-            .arg("-rw_timeout")
-            .arg("15000000")
-            .arg("-reconnect")
-            .arg("1")
-            .arg("-reconnect_streamed")
-            .arg("1")
-            .arg("-reconnect_delay_max")
-            .arg("2")
+            .arg("-re")
+            .arg("-stream_loop")
+            .arg("-1")
+            .arg("-f")
+            .arg("concat")
+            .arg("-safe")
+            .arg("0")
             .arg("-i")
-            .arg(&source_url)
+            .arg(&playlist)
             .arg("-map")
             .arg("0:a:0")
             .arg("-vn")
             .arg("-sn")
             .arg("-dn")
+            .arg("-af")
+            .arg("aresample=48000:async=0,asetpts=N/SR/TB")
             .arg("-c:a")
-            .arg("copy")
+            .arg("aac")
+            .arg("-profile:a")
+            .arg("aac_low")
+            .arg("-aac_coder")
+            .arg("twoloop")
+            .arg("-b:a")
+            .arg("128k")
+            .arg("-ar")
+            .arg("48000")
+            .arg("-ac")
+            .arg("2")
             .arg("-f")
             .arg("adts")
             .arg("pipe:1")
@@ -201,7 +216,7 @@ async fn relay_loop(id: String, source_url: String, tx: broadcast::Sender<Bytes>
         let mut child = match command.spawn() {
             Ok(child) => child,
             Err(error) => {
-                tracing::error!(station=%id, %error, "falha ao iniciar FFmpeg relay");
+                tracing::error!(station=%id, %error, "falha ao iniciar FFmpeg encoder");
                 sleep(Duration::from_secs(2)).await;
                 continue;
             }
@@ -226,18 +241,29 @@ async fn relay_loop(id: String, source_url: String, tx: broadcast::Sender<Bytes>
                     total_frames += publish_adts_frames(&mut pending, &tx) as u64;
                 }
                 Err(error) => {
-                    tracing::warn!(station=%id, %error, "erro lendo relay FFmpeg");
+                    tracing::warn!(station=%id, %error, "erro lendo encoder FFmpeg");
                     break;
                 }
             }
         }
 
         match child.wait().await {
-            Ok(status) => tracing::warn!(station=%id, %status, total_frames, "relay FFmpeg encerrou; reiniciando"),
-            Err(error) => tracing::warn!(station=%id, %error, total_frames, "erro aguardando relay FFmpeg"),
+            Ok(status) => tracing::warn!(station=%id, %status, total_frames, "encoder FFmpeg encerrou; reiniciando"),
+            Err(error) => tracing::warn!(station=%id, %error, total_frames, "erro aguardando encoder FFmpeg"),
         }
 
         sleep(Duration::from_secs(1)).await;
+    }
+}
+
+fn playlist_for(id: &str) -> Option<&'static str> {
+    match id {
+        "radioprincipal" => Some("/srv/studiosat/radio-principal/playlists/atual.ffconcat"),
+        "radiopop" => Some("/srv/studiosat/radio-pop/playlists/atual.ffconcat"),
+        "radiorock" => Some("/srv/studiosat/radio-rock/playlists/atual.ffconcat"),
+        "radioclassicas" => Some("/srv/studiosat/radio-classicas/playlists/atual.ffconcat"),
+        "radiocountry" => Some("/srv/studiosat/radio-country/playlists/atual.ffconcat"),
+        _ => None,
     }
 }
 
@@ -257,12 +283,18 @@ async fn main() -> anyhow::Result<()> {
 
     let mut relay_map = HashMap::new();
     for station in STATIONS {
-        let (tx, _) = broadcast::channel::<Bytes>(4096);
+        // 32 frames AAC @48k = ~0,68 s no maximo dentro do broadcast.
+        // Se um cliente ultrapassar essa janela, a sessao e encerrada.
+        let (tx, _) = broadcast::channel::<Bytes>(32);
         relay_map.insert(station.id.to_string(), tx.clone());
+
+        let playlist = playlist_for(station.id)
+            .expect("catalogo de radio sem playlist local")
+            .to_string();
 
         tokio::spawn(relay_loop(
             station.id.to_string(),
-            station.stream_url.to_string(),
+            playlist,
             tx,
         ));
     }
@@ -283,7 +315,7 @@ async fn main() -> anyhow::Result<()> {
         .with_state(state)
         .layer(TraceLayer::new_for_http());
 
-    tracing::info!(%addr, "StudioSAT V2.2 iniciado: RAW AAC + fallback HLS nativo");
+    tracing::info!(%addr, "StudioSAT V2.3 iniciado: playlist local -> AAC RAW -> HTTP");
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
