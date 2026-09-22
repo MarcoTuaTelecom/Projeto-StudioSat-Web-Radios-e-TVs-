@@ -47,5 +47,5 @@ A primeira build nativa usa AVPlayer com os HLS oficiais, porque o HLS cru já f
 
 O transporte RAW AAC do portal V2.2 também fica disponível para testes comparativos em Safari:
 \`\`\`text
-https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal.aac
+https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal/stream.aac
 \`\`\`
