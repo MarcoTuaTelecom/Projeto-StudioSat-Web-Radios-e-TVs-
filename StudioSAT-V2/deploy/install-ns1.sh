@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 umask 022
 
-VERSION="1.1.0-TRANSACTIONAL"
+VERSION="1.2.0-RAW-AAC"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT/target/release/studiosat-web"
 NGINX="/etc/nginx/conf.d/studiosat-radio.conf"
@@ -56,7 +56,7 @@ rollback(){
 trap rollback ERR
 
 [[ $EUID -eq 0 ]] || die "Execute como root."
-for c in install cp curl python3 nginx systemctl grep sha256sum; do
+for c in install cp curl python3 nginx systemctl grep sha256sum ffmpeg; do
   command -v "$c" >/dev/null 2>&1 || die "Comando ausente: $c"
 done
 [[ -x "$BIN" ]] || die "Build ausente: $BIN"
@@ -121,6 +121,26 @@ if ids != expected:
 print("CATALOGO_5_RADIOS=OK")
 PY
 
+say "2.1 PROVA LOCAL DO TRANSPORTE RAW AAC"
+
+for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
+  python3 - "http://127.0.0.1:8792/listen-v2/live/$r.aac" "$r" <<'PY'
+import sys,urllib.request
+url,name=sys.argv[1],sys.argv[2]
+with urllib.request.urlopen(url,timeout=10) as resp:
+    ctype=resp.headers.get('Content-Type','')
+    transport=resp.headers.get('X-Studiosat-Transport','')
+    data=resp.read(7)
+if ctype.split(';')[0].strip()!='audio/aac':
+    raise SystemExit(f"{name}: content-type inesperado: {ctype}")
+if transport!='raw-aac-adts-copy':
+    raise SystemExit(f"{name}: transporte inesperado: {transport}")
+if not (len(data)>=2 and data[0]==0xff and data[1]&0xf0==0xf0):
+    raise SystemExit(f"{name}: sync ADTS invalido: {data.hex()}")
+print(f"{name} LOCAL_RAW_AAC=OK")
+PY
+done
+
 say "3. PATCH TRANSACIONAL DO NGINX"
 
 python3 - "$NGINX" <<'PY'
@@ -173,8 +193,13 @@ block=r'''
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
         proxy_buffering off;
         proxy_request_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+        send_timeout 1h;
+        gzip off;
         add_header Cache-Control "no-store, no-cache, must-revalidate" always;
         add_header X-StudioSat-V2 "rust-native-media" always;
     }
@@ -218,6 +243,28 @@ if len(d)!=5:
 print("PUBLIC_API_5_RADIOS=OK")
 PY
 
+say "5.1 PROVA PUBLICA DO TRANSPORTE RAW AAC"
+
+for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
+  python3 - "https://www.radio.studiosatweb.com.br/listen-v2/live/$r.aac" "$r" <<'PY'
+import ssl,sys,urllib.request
+url,name=sys.argv[1],sys.argv[2]
+ctx=ssl._create_unverified_context()
+req=urllib.request.Request(url,headers={'Cache-Control':'no-cache'})
+with urllib.request.urlopen(req,timeout=12,context=ctx) as resp:
+    ctype=resp.headers.get('Content-Type','')
+    transport=resp.headers.get('X-Studiosat-Transport','')
+    data=resp.read(7)
+if ctype.split(';')[0].strip()!='audio/aac':
+    raise SystemExit(f"{name}: content-type publico inesperado: {ctype}")
+if transport!='raw-aac-adts-copy':
+    raise SystemExit(f"{name}: transporte publico inesperado: {transport}")
+if not (len(data)>=2 and data[0]==0xff and data[1]&0xf0==0xf0):
+    raise SystemExit(f"{name}: sync ADTS publico invalido: {data.hex()}")
+print(f"{name} PUBLIC_RAW_AAC=OK")
+PY
+done
+
 say "6. STREAMS - NAO MODIFICADOS"
 
 for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
@@ -231,6 +278,6 @@ trap - ERR
 say "INSTALACAO CONCLUIDA"
 echo "RESULTADO=OK"
 echo "SERVICE=studiosat-v2-web.service"
-echo "URL=https://www.radio.studiosatweb.com.br/listen-v2/"
+echo "URL=https://www.radio.studiosatweb.com.br/listen-v2/"\necho "RAW_PRINCIPAL=https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal.aac"
 echo "REFERENCE=https://radio.studiosatweb.com.br/diag-bypass/"
 echo "SNAPSHOT=$SNAP"
