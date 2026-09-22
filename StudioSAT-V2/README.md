@@ -5,7 +5,11 @@ Nova plataforma de portal e aplicativos da Studio Sat, construída do zero e iso
 ## Regra principal
 
 ```text
-HLS da emissora -> mecanismo nativo do cliente -> saída de áudio
+WEB V2.2
+HLS validado -> FFmpeg -c:a copy -> AAC/ADTS contínuo -> navegador nativo
+
+APPS NATIVOS
+HLS ou RAW AAC -> AVPlayer/Media3 -> saída nativa
 ```
 
 Nenhum VU, animação, metadado ou API pode interceptar, reamostrar, acelerar, desacelerar ou reconstruir o áudio.
@@ -38,3 +42,17 @@ sudo ./deploy/install-ns1.sh
 Teste em `https://www.radio.studiosatweb.com.br/listen-v2/`.
 
 O `/listen/` legado permanece intacto até o V2 ser aprovado auditivamente.
+
+
+## V2.2 — transporte sem MSE no portal
+
+O portal web usa como transporte primário `/listen-v2/live/<radio>.aac`.
+O Rust mantém um relay por emissora e o FFmpeg apenas copia os pacotes AAC
+(`-c:a copy`) do HLS já validado para ADTS contínuo. Não existe HLS.js/MSE
+no caminho normal do portal.
+
+Teste direto:
+
+```text
+https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal.aac
+```
