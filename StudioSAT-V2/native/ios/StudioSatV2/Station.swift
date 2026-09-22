@@ -7,7 +7,10 @@ struct Station: Identifiable, Hashable {
     let hlsURL: URL
 
     var rawAACURL: URL {
-        URL(string: "https://www.radio.studiosatweb.com.br/listen-v2/live/\(id)/stream.aac")!
+        if id == "radioprincipal" {
+            return URL(string: "https://radio.studiosatweb.com.br/radioprincipal-rb.aac")!
+        }
+        return URL(string: "https://www.radio.studiosatweb.com.br/listen-v2/live/\(id)/stream.aac")!
     }
 
     static let all: [Station] = [
