@@ -41,11 +41,11 @@ O Rust analisa o cabeçalho ADTS e só publica frames AAC completos. Assim um no
 ## Rotas
 
 \`\`\`text
-/listen-v2/live/radioprincipal.aac
-/listen-v2/live/radiopop.aac
-/listen-v2/live/radiorock.aac
-/listen-v2/live/radioclassicas.aac
-/listen-v2/live/radiocountry.aac
+/listen-v2/live/radioprincipal/stream.aac
+/listen-v2/live/radiopop/stream.aac
+/listen-v2/live/radiorock/stream.aac
+/listen-v2/live/radioclassicas/stream.aac
+/listen-v2/live/radiocountry/stream.aac
 \`\`\`
 
 ## Fallback
