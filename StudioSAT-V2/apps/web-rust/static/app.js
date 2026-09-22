@@ -1,19 +1,20 @@
 /*
- * StudioSAT V2.1 Web Player
+ * StudioSAT V2.2 RAW AUDIO
  *
- * PRINCÍPIO:
- * uma emissora = uma sessão de mídia nova.
+ * Transporte primario:
+ *   AAC/ADTS continuo -> HTTP -> HTMLMediaElement.
  *
- * Na troca de rádio o elemento <audio>, MediaSource, decoder e Hls são
- * destruídos. Um novo <audio> é criado do zero antes de abrir o próximo HLS.
+ * O browser NAO recebe HLS no modo normal. Portanto nao ha:
+ * - HLS.js;
+ * - MediaSource Extensions;
+ * - GapController;
+ * - nudge de currentTime;
+ * - catch-up de live edge;
+ * - timestampOffset de SourceBuffer;
+ * - PCM/WebAudio.
  *
- * O código NÃO:
- * - lê PCM;
- * - cria AudioContext/WebAudio;
- * - altera playbackRate;
- * - faz seek para perseguir live edge;
- * - usa recoverMediaError();
- * - reaproveita buffers entre estações.
+ * Em navegadores sem suporte a audio/aac, somente HLS NATIVO e aceito como
+ * fallback. Nao existe fallback MSE.
  */
 (() => {
   'use strict';
@@ -29,15 +30,19 @@
   const track = document.getElementById('track');
   const stationsNode = document.getElementById('stations');
   const telemetry = document.getElementById('telemetry');
+  const rawLink = document.getElementById('raw-link');
 
   let audio = document.getElementById('audio');
   let selected = null;
-  let hls = null;
   let metadataTimer = null;
   let telemetryTimer = null;
   let session = 0;
   let muted = false;
   let wantsPlayback = false;
+
+  function rawUrl(station) {
+    return '/listen-v2/live/' + encodeURIComponent(station.id) + '.aac';
+  }
 
   function bufferedAhead(media) {
     try {
@@ -54,7 +59,10 @@
   function updateTelemetry() {
     if (!audio) return;
     telemetry.textContent =
-      `rate=${Number(audio.playbackRate || 1).toFixed(3)} · buffer=${bufferedAhead(audio).toFixed(1)}s · sessão=${session}`;
+      'rate=' + Number(audio.playbackRate || 1).toFixed(3) +
+      ' · buffer=' + bufferedAhead(audio).toFixed(1) + 's' +
+      ' · sessão=' + session +
+      ' · readyState=' + audio.readyState;
   }
 
   function bindAudioEvents(media, generation) {
@@ -96,7 +104,7 @@
 
     media.addEventListener('error', () => {
       if (!valid()) return;
-      state.textContent = 'ERRO — TOQUE OUVIR';
+      state.textContent = 'ERRO — NOVA SESSÃO';
       wantsPlayback = false;
       play.textContent = '▶ Ouvir';
       document.body.classList.remove('playing');
@@ -105,32 +113,23 @@
 
     media.addEventListener('ratechange', () => {
       if (!valid()) return;
-      // Observação apenas. O V2 nunca escreve em playbackRate.
       updateTelemetry();
       if (Math.abs(media.playbackRate - 1) > 0.001) {
-        state.textContent = `VELOCIDADE ${media.playbackRate.toFixed(3)}x`;
-        console.error('StudioSAT V2: playbackRate mudou sem comando da aplicação', media.playbackRate);
+        state.textContent = 'VELOCIDADE ' + media.playbackRate.toFixed(3) + 'x';
+        console.error('StudioSAT V2.2: playbackRate mudou sem comando', media.playbackRate);
       }
     });
   }
 
   function destroySession() {
     session += 1;
-
-    if (hls) {
-      try { hls.stopLoad(); } catch (_) {}
-      try { hls.detachMedia(); } catch (_) {}
-      try { hls.destroy(); } catch (_) {}
-      hls = null;
-    }
+    clearInterval(telemetryTimer);
 
     if (audio) {
       try { audio.pause(); } catch (_) {}
       try { audio.removeAttribute('src'); } catch (_) {}
       try { audio.load(); } catch (_) {}
     }
-
-    clearInterval(telemetryTimer);
   }
 
   function createFreshAudio() {
@@ -155,13 +154,17 @@
   function attachFresh(station) {
     destroySession();
     state.textContent = 'CONECTANDO';
-    const { media, generation } = createFreshAudio();
-    const url = station.stream_url;
 
-    if (media.canPlayType('application/vnd.apple.mpegurl')) {
-      engine.textContent = 'motor: HLS nativo · sessão limpa';
-      media.src = url;
+    const { media, generation } = createFreshAudio();
+    const raw = rawUrl(station);
+    rawLink.href = raw;
+
+    const aacSupport = media.canPlayType('audio/aac');
+    if (aacSupport) {
+      engine.textContent = 'motor: AAC/ADTS RAW · ' + aacSupport;
+      media.src = raw;
       media.load();
+
       if (wantsPlayback) {
         media.addEventListener('canplay', () => {
           if (generation === session && wantsPlayback) media.play().catch(() => {});
@@ -170,53 +173,24 @@
       return;
     }
 
-    if (window.Hls && window.Hls.isSupported()) {
-      engine.textContent = 'motor: MSE/HLS.js 1.6.13 · sessão limpa';
+    const hlsSupport =
+      media.canPlayType('application/vnd.apple.mpegurl') ||
+      media.canPlayType('audio/mpegurl');
 
-      // Configuração deliberadamente conservadora.
-      // Sem liveMaxLatencyDuration*, sem catch-up, sem recovery de media.
-      const instance = new window.Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        maxLiveSyncPlaybackRate: 1.0
-      });
-      hls = instance;
+    if (hlsSupport) {
+      engine.textContent = 'motor: HLS nativo · fallback';
+      media.src = station.stream_url;
+      media.load();
 
-      instance.on(window.Hls.Events.ERROR, (_, data) => {
-        if (generation !== session || instance !== hls) return;
-        console.warn('StudioSAT V2 HLS', data.type, data.details, 'fatal=', data.fatal);
-        if (data.fatal) {
-          // Não tentamos "consertar" decoder/buffer por cima da sessão atual.
-          // O próximo toque em Ouvir cria uma sessão totalmente nova.
-          state.textContent = 'RECONEXÃO — TOQUE OUVIR';
-          wantsPlayback = false;
-          try { media.pause(); } catch (_) {}
-          play.textContent = '▶ Ouvir';
-          document.body.classList.remove('playing');
-        }
-      });
-
-      instance.on(window.Hls.Events.MEDIA_ATTACHED, () => {
-        if (generation !== session || instance !== hls) return;
-        instance.loadSource(url);
-      });
-
-      instance.on(window.Hls.Events.MANIFEST_PARSED, () => {
-        if (generation !== session || instance !== hls) return;
-        if (wantsPlayback) {
-          const startWhenReady = () => {
-            if (generation === session && wantsPlayback) media.play().catch(() => {});
-          };
-          if (media.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) startWhenReady();
-          else media.addEventListener('canplay', startWhenReady, { once: true });
-        }
-      });
-
-      instance.attachMedia(media);
+      if (wantsPlayback) {
+        media.addEventListener('canplay', () => {
+          if (generation === session && wantsPlayback) media.play().catch(() => {});
+        }, { once: true });
+      }
       return;
     }
 
-    engine.textContent = 'motor: HLS indisponível';
+    engine.textContent = 'motor: AAC/HLS nativo indisponível';
     state.textContent = 'NÃO SUPORTADO';
     wantsPlayback = false;
   }
@@ -224,10 +198,15 @@
   async function refreshMetadata() {
     const station = selected;
     if (!station) return;
+
     try {
-      const response = await fetch(`${station.metadata_url}?v=${Date.now()}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const response = await fetch(
+        station.metadata_url + '?v=' + Date.now(),
+        { cache: 'no-store' }
+      );
+      if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
+
       if (!selected || selected.id !== station.id) return;
       artist.textContent = data.artist || data.performer || station.name;
       track.textContent = data.track || data.title || data.song || 'Programação ao vivo';
@@ -239,8 +218,11 @@
   }
 
   function favoritesSet() {
-    try { return new Set(JSON.parse(localStorage.getItem('studiosat-v2-favorites') || '[]')); }
-    catch (_) { return new Set(); }
+    try {
+      return new Set(JSON.parse(localStorage.getItem('studiosat-v2-favorites') || '[]'));
+    } catch (_) {
+      return new Set();
+    }
   }
 
   function updateFavorite() {
@@ -257,6 +239,7 @@
 
     stationName.textContent = station.name;
     stationDescription.textContent = station.description;
+
     document.querySelectorAll('[data-station]').forEach((node) => {
       node.classList.toggle('active', node.dataset.station === station.id);
     });
@@ -278,8 +261,7 @@
       return;
     }
 
-    // Se a sessão terminou em erro, cria tudo de novo antes de tocar.
-    if (!audio || audio.error || state.textContent.startsWith('RECONEXÃO')) {
+    if (!audio || audio.error) {
       wantsPlayback = true;
       attachFresh(selected);
       return;
@@ -287,6 +269,7 @@
 
     wantsPlayback = true;
     state.textContent = 'CONECTANDO';
+
     try {
       await audio.play();
     } catch (_) {
@@ -311,7 +294,7 @@
 
   fetch('/listen-v2/api/stations', { cache: 'no-store' })
     .then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw new Error('HTTP ' + response.status);
       return response.json();
     })
     .then((stations) => {
@@ -320,10 +303,13 @@
         button.type = 'button';
         button.dataset.station = station.id;
         button.className = 'station';
-        button.innerHTML = `<strong>${station.short_name}</strong><span>${station.description}</span>`;
+        button.innerHTML =
+          '<strong>' + station.short_name + '</strong>' +
+          '<span>' + station.description + '</span>';
         button.addEventListener('click', () => selectStation(station));
         stationsNode.appendChild(button);
       }
+
       if (stations.length) {
         selected = stations[0];
         stationName.textContent = selected.name;
