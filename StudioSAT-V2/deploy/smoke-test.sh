@@ -18,7 +18,7 @@ for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
   curl -kfsS "$RADIO/$r/index.m3u8" | grep -q '^#EXTM3U'
   echo "$r HLS_SOURCE=OK"
 
-  python3 - "$BASE/listen-v2/live/$r.aac" "$r" <<'PY'
+  python3 - "$BASE/listen-v2/live/$r/stream.aac" "$r" <<'PY'
 import sys,urllib.request
 url,name=sys.argv[1],sys.argv[2]
 req=urllib.request.Request(url,headers={'Cache-Control':'no-cache'})
