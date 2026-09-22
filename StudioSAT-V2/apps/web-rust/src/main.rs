@@ -276,7 +276,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health))
         .route("/api/v2/stations", get(stations))
         .route("/listen-v2/api/stations", get(stations))
-        .route("/listen-v2/live/{id}.aac", get(live_aac))
+        .route("/listen-v2/live/{id}/stream.aac", get(live_aac))
         .route("/listen-v2", get(|| async { Redirect::permanent("/listen-v2/") }))
         .route("/listen-v2/", get(index))
         .nest_service("/listen-v2/static", ServeDir::new(static_dir))
