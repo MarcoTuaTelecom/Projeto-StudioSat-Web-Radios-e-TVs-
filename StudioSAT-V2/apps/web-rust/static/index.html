@@ -4,25 +4,51 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <title>Studio Sat V2</title>
-  <link rel="stylesheet" href="/listen-v2/static/styles.css?v=2.0.0-a1">
-  <script defer src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js"></script>
-  <script defer src="/listen-v2/static/app.js?v=2.0.0-a1"></script>
+  <link rel="stylesheet" href="/listen-v2/static/styles.css?v=2.1.0">
+  <!--
+    HLS.js é usado somente em browsers sem HLS nativo.
+    1.6.13 é a versão já comprovada no player de referência do NS1.
+    O código V2 abaixo é novo; apenas fixamos o mesmo motor MSE conhecido.
+  -->
+  <script defer src="https://cdn.jsdelivr.net/npm/hls.js@1.6.13/dist/hls.min.js"></script>
+  <script defer src="/listen-v2/static/app.js?v=2.1.0"></script>
 </head>
 <body>
   <main class="shell">
-    <header class="brand"><div><p class="eyebrow">STUDIO SAT V2</p><h1>A música nos conecta</h1></div><span id="engine" class="engine">motor: aguardando</span></header>
+    <header class="brand">
+      <div><p class="eyebrow">STUDIO SAT V2.1</p><h1>A música nos conecta</h1></div>
+      <span id="engine" class="engine">motor: aguardando</span>
+    </header>
     <section class="hero">
       <div class="live-line"><span class="live-dot"></span><span id="state">PRONTO</span></div>
       <h2 id="station-name">Rádio Studio Sat</h2>
       <p id="station-description">Selecione uma emissora e pressione ouvir.</p>
       <div class="now"><strong id="artist">Studio Sat</strong><span id="track">Programação ao vivo</span></div>
       <div class="vu" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <!--
+        Este nó é deliberadamente substituído por um <audio> NOVO a cada troca
+        de estação. Assim nenhum MediaSource/decoder/buffer da rádio anterior
+        pode sobreviver à troca.
+      -->
       <audio id="audio" preload="none" playsinline></audio>
-      <div class="controls"><button id="play" class="primary" type="button">▶ Ouvir</button><button id="mute" type="button">Som</button><button id="favorite" type="button">♡ Favoritar</button></div>
+      <div class="controls">
+        <button id="play" class="primary" type="button">▶ Ouvir</button>
+        <button id="mute" type="button">Som</button>
+        <button id="favorite" type="button">♡ Favoritar</button>
+      </div>
     </section>
-    <section><div class="section-title"><h3>Emissoras</h3><small>HLS direto</small></div><div id="stations" class="station-grid"></div></section>
-    <section class="technical"><h3>Caminho de áudio</h3><code>HLS → mecanismo nativo/MSE → decoder do dispositivo → saída</code><p>Sem WebAudio, sem analisador PCM, sem time-stretch e sem service worker de mídia.</p></section>
+    <section>
+      <div class="section-title"><h3>Emissoras</h3><small>HLS direto · sessão limpa por estação</small></div>
+      <div id="stations" class="station-grid"></div>
+    </section>
+    <section class="technical">
+      <h3>Caminho de áudio</h3>
+      <code>HLS → HLS nativo ou MSE limpo → decoder do dispositivo → saída</code>
+      <p>Sem WebAudio, sem PCM, sem time-stretch, sem seek de catch-up e sem reaproveitar buffer entre emissoras.</p>
+      <p id="telemetry">rate=1.000 · buffer=0.0s · sessão=0</p>
+    </section>
   </main>
 </body>
 </html>
