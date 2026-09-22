@@ -5,49 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
-  <title>Studio Sat V2</title>
-  <link rel="stylesheet" href="/listen-v2/static/styles.css?v=2.1.0">
-  <!--
-    HLS.js é usado somente em browsers sem HLS nativo.
-    1.6.13 é a versão já comprovada no player de referência do NS1.
-    O código V2 abaixo é novo; apenas fixamos o mesmo motor MSE conhecido.
-  -->
-  <script defer src="https://cdn.jsdelivr.net/npm/hls.js@1.6.13/dist/hls.min.js"></script>
-  <script defer src="/listen-v2/static/app.js?v=2.1.0"></script>
+  <title>Studio Sat V2.2 RAW</title>
+  <link rel="stylesheet" href="/listen-v2/static/styles.css?v=2.2.0">
+  <script defer src="/listen-v2/static/app.js?v=2.2.0"></script>
 </head>
 <body>
   <main class="shell">
     <header class="brand">
-      <div><p class="eyebrow">STUDIO SAT V2.1</p><h1>A música nos conecta</h1></div>
+      <div><p class="eyebrow">STUDIO SAT V2.2 · RAW AAC</p><h1>A música nos conecta</h1></div>
       <span id="engine" class="engine">motor: aguardando</span>
     </header>
+
     <section class="hero">
       <div class="live-line"><span class="live-dot"></span><span id="state">PRONTO</span></div>
       <h2 id="station-name">Rádio Studio Sat</h2>
       <p id="station-description">Selecione uma emissora e pressione ouvir.</p>
-      <div class="now"><strong id="artist">Studio Sat</strong><span id="track">Programação ao vivo</span></div>
-      <div class="vu" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-      <!--
-        Este nó é deliberadamente substituído por um <audio> NOVO a cada troca
-        de estação. Assim nenhum MediaSource/decoder/buffer da rádio anterior
-        pode sobreviver à troca.
-      -->
+
+      <div class="now">
+        <strong id="artist">Studio Sat</strong>
+        <span id="track">Programação ao vivo</span>
+      </div>
+
+      <div class="vu" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+
       <audio id="audio" preload="none" playsinline></audio>
+
       <div class="controls">
         <button id="play" class="primary" type="button">▶ Ouvir</button>
         <button id="mute" type="button">Som</button>
         <button id="favorite" type="button">♡ Favoritar</button>
       </div>
     </section>
+
     <section>
-      <div class="section-title"><h3>Emissoras</h3><small>HLS direto · sessão limpa por estação</small></div>
+      <div class="section-title">
+        <h3>Emissoras</h3>
+        <small>AAC contínuo · sem MSE</small>
+      </div>
       <div id="stations" class="station-grid"></div>
     </section>
+
     <section class="technical">
-      <h3>Caminho de áudio</h3>
-      <code>HLS → HLS nativo ou MSE limpo → decoder do dispositivo → saída</code>
-      <p>Sem WebAudio, sem PCM, sem time-stretch, sem seek de catch-up e sem reaproveitar buffer entre emissoras.</p>
+      <h3>Caminho de áudio V2.2</h3>
+      <code>HLS validado → FFmpeg -c:a copy → AAC/ADTS contínuo → HTTP → decoder nativo</code>
+      <p>O navegador não recebe segmentos HLS, não usa MediaSource e não executa HLS.js. O relay não reencoda.</p>
       <p id="telemetry">rate=1.000 · buffer=0.0s · sessão=0</p>
+      <p><a id="raw-link" href="#" target="_blank" rel="noopener">Abrir stream RAW desta emissora</a></p>
     </section>
   </main>
 </body>
