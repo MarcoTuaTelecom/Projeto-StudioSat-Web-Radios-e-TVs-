@@ -41,7 +41,7 @@
   let wantsPlayback = false;
 
   function rawUrl(station) {
-    return '/listen-v2/live/' + encodeURIComponent(station.id) + '.aac';
+    return '/listen-v2/live/' + encodeURIComponent(station.id) + '/stream.aac';
   }
 
   function bufferedAhead(media) {
