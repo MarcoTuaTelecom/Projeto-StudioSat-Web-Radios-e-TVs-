@@ -1,12 +1,12 @@
 [Unit]
-Description=Studio Sat V2 Rust Web Portal + RAW AAC Relay
+Description=Studio Sat V2.3 Direct Playlist RAW AAC
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=tpsmedia
+Group=tpsmedia
 WorkingDirectory=/opt/studiosat-v2
 Environment=STUDIOSAT_BIND=127.0.0.1:8792
 Environment=STUDIOSAT_STATIC_DIR=/opt/studiosat-v2/web/static
