@@ -1,0 +1,43 @@
+name: StudioSAT V2 CI
+on:
+  push:
+    paths:
+      - "StudioSAT-V2/**"
+      - ".github/workflows/studiosat-v2-ci.yml"
+  pull_request:
+    paths:
+      - "StudioSAT-V2/**"
+      - ".github/workflows/studiosat-v2-ci.yml"
+
+jobs:
+  rust:
+    name: Rust web/core
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: StudioSAT-V2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+      - run: cargo check --workspace
+      - run: cargo test --workspace
+
+  android:
+    name: Android native Media3
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: StudioSAT-V2/native/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.6.0"
+      - run: gradle :app:assembleDebug
