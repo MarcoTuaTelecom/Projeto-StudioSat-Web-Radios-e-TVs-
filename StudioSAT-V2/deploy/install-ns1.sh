@@ -124,7 +124,7 @@ PY
 say "2.1 PROVA LOCAL DO TRANSPORTE RAW AAC"
 
 for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
-  python3 - "http://127.0.0.1:8792/listen-v2/live/$r.aac" "$r" <<'PY'
+  python3 - "http://127.0.0.1:8792/listen-v2/live/$r/stream.aac" "$r" <<'PY'
 import sys,urllib.request
 url,name=sys.argv[1],sys.argv[2]
 with urllib.request.urlopen(url,timeout=10) as resp:
@@ -246,7 +246,7 @@ PY
 say "5.1 PROVA PUBLICA DO TRANSPORTE RAW AAC"
 
 for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
-  python3 - "https://www.radio.studiosatweb.com.br/listen-v2/live/$r.aac" "$r" <<'PY'
+  python3 - "https://www.radio.studiosatweb.com.br/listen-v2/live/$r/stream.aac" "$r" <<'PY'
 import ssl,sys,urllib.request
 url,name=sys.argv[1],sys.argv[2]
 ctx=ssl._create_unverified_context()
@@ -278,6 +278,6 @@ trap - ERR
 say "INSTALACAO CONCLUIDA"
 echo "RESULTADO=OK"
 echo "SERVICE=studiosat-v2-web.service"
-echo "URL=https://www.radio.studiosatweb.com.br/listen-v2/"\necho "RAW_PRINCIPAL=https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal.aac"
+echo "URL=https://www.radio.studiosatweb.com.br/listen-v2/"\necho "RAW_PRINCIPAL=https://www.radio.studiosatweb.com.br/listen-v2/live/radioprincipal/stream.aac"
 echo "REFERENCE=https://radio.studiosatweb.com.br/diag-bypass/"
 echo "SNAPSHOT=$SNAP"
