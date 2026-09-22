@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 umask 022
 
-VERSION="1.2.0-RAW-AAC"
+VERSION="1.2.1-RAW-AAC-ROUTE-FIX"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT/target/release/studiosat-web"
 NGINX="/etc/nginx/conf.d/studiosat-radio.conf"
