@@ -88,7 +88,8 @@ for r in radioprincipal radiopop radiorock radioclassicas radiocountry; do
   [[ -s "$pl" ]] || die "$r sem playlist: $pl"
   runuser -u tpsmedia -- test -r "$pl" || die "$r playlist sem leitura para tpsmedia: $pl"
 
-  test_aac="$SNAP/$r-preflight.aac"
+  test_aac="/tmp/studiosat-v2-$TS-$r-preflight.aac"
+  rm -f "$test_aac"
 
   runuser -u tpsmedia -- ffmpeg \
     -hide_banner \
@@ -119,6 +120,7 @@ if not (len(b)>=2 and b[0]==0xff and b[1]&0xf0==0xf0):
     raise SystemExit(f"{name}: ADTS preflight invalido: {b.hex()}")
 print(f"{name} PLAYLIST_TO_AAC=OK")
 PY
+  rm -f "$test_aac"
 done
 say "1. INSTALANDO BINARIO + STATIC"
 
