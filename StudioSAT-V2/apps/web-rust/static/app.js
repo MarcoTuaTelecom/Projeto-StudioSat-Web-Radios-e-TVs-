@@ -1,5 +1,5 @@
 /*
- * StudioSAT V2.2 RAW AUDIO
+ * StudioSAT V2.3 RAW AUDIO
  *
  * Transporte primario:
  *   AAC/ADTS continuo -> HTTP -> HTMLMediaElement.
@@ -116,7 +116,7 @@
       updateTelemetry();
       if (Math.abs(media.playbackRate - 1) > 0.001) {
         state.textContent = 'VELOCIDADE ' + media.playbackRate.toFixed(3) + 'x';
-        console.error('StudioSAT V2.2: playbackRate mudou sem comando', media.playbackRate);
+        console.error('StudioSAT V2.3: playbackRate mudou sem comando', media.playbackRate);
       }
     });
   }
@@ -161,7 +161,7 @@
 
     const aacSupport = media.canPlayType('audio/aac');
     if (aacSupport) {
-      engine.textContent = 'motor: AAC/ADTS RAW · ' + aacSupport;
+      engine.textContent = 'motor: AAC/ADTS DIRETO · ' + aacSupport;
       media.src = raw;
       media.load();
 
