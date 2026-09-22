@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:gravity="center_horizontal">
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Studio Sat V2" android:textSize="30sp" android:textStyle="bold" />
+  <TextView android:id="@+id/status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pronto" android:layout_marginTop="8dp" />
+  <Spinner android:id="@+id/stations" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" />
+  <Button android:id="@+id/play" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Ouvir" android:layout_marginTop="24dp" />
+  <Button android:id="@+id/mute" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Som" android:layout_marginTop="10dp" />
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="HLS → Media3 → decoder nativo → saída
+Sem WebView, sem PCM sampling, sem time-stretch." />
+</LinearLayout>
