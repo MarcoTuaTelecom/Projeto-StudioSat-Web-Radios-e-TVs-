@@ -61,7 +61,7 @@ async fn health() -> Json<Health<'static>> {
         status: "ok",
         service: "studiosat-v2-web",
         version: env!("CARGO_PKG_VERSION"),
-        transport: "raw-aac-adts-copy",
+        transport: "raw-aac-adts-direct",
         stations: STATIONS.len(),
     })
 }
@@ -108,7 +108,7 @@ async fn live_aac(
     headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-store, no-cache, must-revalidate"));
     headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
     headers.insert("x-accel-buffering", HeaderValue::from_static("no"));
-    headers.insert("x-studiosat-transport", HeaderValue::from_static("raw-aac-adts-copy"));
+    headers.insert("x-studiosat-transport", HeaderValue::from_static("raw-aac-adts-direct"));
     Ok(response)
 }
 
